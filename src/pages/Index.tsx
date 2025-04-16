@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Alert, RSSItem } from "@/types";
 import { fetchRssFeeds } from "@/services/rssService";
@@ -6,32 +7,14 @@ import {
   classifyAlertsWithAI, 
   hasOpenAIApiKey 
 } from "@/services/alertService";
-
-const refreshAlerts = async (userLocation: string) => {
-  try {
-    const rssItems = await fetchRssFeeds();
-    console.log(`Fetched ${rssItems.length} RSS items`); // New log for tracing
-    
-    let classifiedAlerts;
-    if (useAI && hasOpenAIApiKey()) {
-      try {
-        classifiedAlerts = await classifyAlertsWithAI(rssItems, userLocation);
-        console.log(`AI classified ${classifiedAlerts.length} security events`); // New log
-      } catch (error) {
-        console.error("AI classification failed:", error);
-        classifiedAlerts = classifyAlerts(rssItems, userLocation);
-        console.log(`Keyword classified ${classifiedAlerts.length} security events`); // New log
-      }
-    } else {
-      classifiedAlerts = classifyAlerts(rssItems, userLocation);
-      console.log(`Keyword classified ${classifiedAlerts.length} security events`); // New log
-    }
-    
-    setAlerts(classifiedAlerts);
-  } catch (error) {
-    console.error("Error refreshing alerts:", error);
-  }
-};
+import { getCurrentLocation, reverseGeocode } from "@/services/locationService";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
+import { Loader2, Clock, Key } from "lucide-react";
+import { Header } from "@/components/Header";
+import { AlertList } from "@/components/AlertList";
+import { ApiKeyDialog } from "@/components/ApiKeyDialog";
 
 const Index = () => {
   const { toast } = useToast();
@@ -42,6 +25,32 @@ const Index = () => {
   const [snoozeEndTime, setSnoozeEndTime] = useState<Date | null>(null);
   const [useAI, setUseAI] = useState<boolean>(false);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState<boolean>(false);
+
+  const refreshAlerts = async (userLocation: string) => {
+    try {
+      const rssItems = await fetchRssFeeds();
+      console.log(`Fetched ${rssItems.length} RSS items`); // New log for tracing
+      
+      let classifiedAlerts;
+      if (useAI && hasOpenAIApiKey()) {
+        try {
+          classifiedAlerts = await classifyAlertsWithAI(rssItems, userLocation);
+          console.log(`AI classified ${classifiedAlerts.length} security events`); // New log
+        } catch (error) {
+          console.error("AI classification failed:", error);
+          classifiedAlerts = classifyAlerts(rssItems, userLocation);
+          console.log(`Keyword classified ${classifiedAlerts.length} security events`); // New log
+        }
+      } else {
+        classifiedAlerts = classifyAlerts(rssItems, userLocation);
+        console.log(`Keyword classified ${classifiedAlerts.length} security events`); // New log
+      }
+      
+      setAlerts(classifiedAlerts);
+    } catch (error) {
+      console.error("Error refreshing alerts:", error);
+    }
+  };
   
   useEffect(() => {
     const hasApiKey = hasOpenAIApiKey();
