@@ -8,6 +8,7 @@ export interface Alert {
   isRelevant: boolean;
   source: string;
   link: string;
+  isSecurityEvent: boolean; // שדה חדש לסימון אירועי ביטחון
 }
 
 export interface LocationData {

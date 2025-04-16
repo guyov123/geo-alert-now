@@ -32,6 +32,9 @@ export function AlertList({ alerts }: AlertListProps) {
   // Split alerts by relevance for different tabs
   const relevantAlerts = alerts.filter(alert => alert.isRelevant);
   
+  // Filter alerts that are security events - for "all alerts" tab
+  const securityAlerts = alerts.filter(alert => alert.isSecurityEvent);
+  
   if (alerts.length === 0) {
     return (
       <div className="w-full text-center py-12">
@@ -76,13 +79,13 @@ export function AlertList({ alerts }: AlertListProps) {
           )}
         </TabsContent>
         <TabsContent value="all" className="mt-4 space-y-4">
-          {alerts.length > 0 ? (
-            alerts.map(alert => (
+          {securityAlerts.length > 0 ? (
+            securityAlerts.map(alert => (
               <AlertCard key={alert.id} alert={alert} />
             ))
           ) : (
             <div className="text-center py-8 text-gray-500" dir="rtl">
-              <p>אין התראות כרגע</p>
+              <p>אין התראות ביטחוניות כרגע</p>
             </div>
           )}
         </TabsContent>
