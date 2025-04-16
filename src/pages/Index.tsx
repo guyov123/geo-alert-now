@@ -24,7 +24,7 @@ const Index = () => {
   const { 
     alerts, 
     loading, 
-    setLoading, 
+    error,
     useAI, 
     setUseAI, 
     refreshAlerts 
@@ -35,12 +35,6 @@ const Index = () => {
     snoozeEndTime,
     handleSnoozeChange
   } = useSnooze((loc) => refreshAlerts(loc));
-
-  useEffect(() => {
-    if (!loading) {
-      refreshAlerts(location);
-    }
-  }, [location]);
 
   const toggleAIClassification = () => {
     if (!useAI) {
@@ -73,8 +67,31 @@ const Index = () => {
     handleSnoozeChange(0, location);
   };
 
+  // בדיקה אם יש שגיאה במהלך טעינת הנתונים
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner message="טוען התראות..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col bg-geoalert-gray">
+        <Header 
+          location={location} 
+          onLocationChange={handleLocationChange}
+          onSnoozeChange={(minutes) => handleSnoozeChange(minutes, location)}
+          snoozeActive={snoozeActive}
+        />
+        
+        <main className="flex-1 container mx-auto px-4 py-6 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-lg text-red-500 mb-4">{error}</p>
+            <Button onClick={() => refreshAlerts(location)}>נסה שוב</Button>
+          </div>
+        </main>
+        
+        <AppFooter />
+      </div>
+    );
   }
 
   return (

@@ -13,9 +13,13 @@ export function useAlerts(location: string, snoozeActive: boolean) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [useAI, setUseAI] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const refreshAlerts = async (userLocation: string) => {
+    setLoading(true);
+    setError(null);
+    
     try {
       const rssItems = await fetchRssFeeds();
       console.log(`Fetched ${rssItems.length} RSS items`); 
@@ -29,6 +33,13 @@ export function useAlerts(location: string, snoozeActive: boolean) {
           console.error("AI classification failed:", error);
           classifiedAlerts = classifyAlerts(rssItems, userLocation);
           console.log(`Keyword classified ${classifiedAlerts.length} security events`);
+          
+          // Show toast notification about falling back to keyword classification
+          toast({
+            title: "שגיאה בסיווג AI",
+            description: "עברנו לסיווג מבוסס מילות מפתח",
+            variant: "destructive"
+          });
         }
       } else {
         classifiedAlerts = classifyAlerts(rssItems, userLocation);
@@ -38,6 +49,10 @@ export function useAlerts(location: string, snoozeActive: boolean) {
       setAlerts(classifiedAlerts);
     } catch (error) {
       console.error("Error refreshing alerts:", error);
+      setError("אירעה שגיאה בטעינת ההתראות");
+    } finally {
+      // Ensure loading state is always turned off after attempted refresh
+      setLoading(false);
     }
   };
 
@@ -46,6 +61,11 @@ export function useAlerts(location: string, snoozeActive: boolean) {
     const hasApiKey = hasOpenAIApiKey();
     setUseAI(hasApiKey);
   }, []);
+
+  // Initial load of alerts
+  useEffect(() => {
+    refreshAlerts(location);
+  }, [location]);
 
   // Regular refresh of alerts
   useEffect(() => {
@@ -62,6 +82,7 @@ export function useAlerts(location: string, snoozeActive: boolean) {
     alerts,
     loading,
     setLoading,
+    error,
     useAI,
     setUseAI,
     refreshAlerts
