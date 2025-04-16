@@ -1,3 +1,4 @@
+
 import { Alert, RSSItem, LocationData } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
@@ -46,7 +47,7 @@ export async function classifyAlertsWithAI(rssItems: RSSItem[], userLocation: st
     const batchSize = 5;
     const batches = [];
     
-    for (let i = 0; < rssItems.length; i += batchSize) {
+    for (let i = 0; i < rssItems.length; i += batchSize) {
       batches.push(rssItems.slice(i, i + batchSize));
     }
     
