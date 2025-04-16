@@ -1,5 +1,5 @@
 import { RSSItem } from "@/types";
-import xml2js from "xml2js";
+import * as xml2js from "xml2js";
 
 // Real RSS feed proxy API to avoid CORS issues
 const RSS_PROXY_API = "https://api.allorigins.win/raw?url=";
