@@ -6,8 +6,9 @@ import { fetchRssFeeds } from "@/services/rssService";
 import { 
   classifyAlerts, 
   classifyAlertsWithAI, 
-  hasOpenAIApiKey
+  hasLocalApiKey
 } from "@/services/alertService";
+import { saveAlertsToHistory } from "@/services/historyService";
 
 export function useAlerts(location: string, snoozeActive: boolean) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -47,6 +48,9 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         console.log(`Keyword classified ${classifiedAlerts.length} security events`);
       }
       
+      // שמירת ההתראות להיסטוריה
+      saveAlertsToHistory(classifiedAlerts);
+      
       setAlerts(classifiedAlerts);
     } catch (error) {
       console.error("Error refreshing alerts:", error);
@@ -60,7 +64,8 @@ export function useAlerts(location: string, snoozeActive: boolean) {
   // פונקציה לבדיקת קיום מפתח API
   const checkForApiKey = async () => {
     try {
-      const hasKey = await hasOpenAIApiKey();
+      // בדיקה פשוטה האם קיים מפתח מקומי
+      const hasKey = hasLocalApiKey();
       setUseAI(hasKey);
     } catch (error) {
       console.error("Error checking for API key:", error);

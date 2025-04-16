@@ -1,77 +1,34 @@
+
 import { useState, useEffect } from "react";
 import { Alert } from "@/types";
 import { AlertCard } from "@/components/AlertCard";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, Clock, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
+import { getAlertHistory, clearAlertHistory } from "@/services/historyService";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const History = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [filter, setFilter] = useState<string>("all");
+  const { toast } = useToast();
 
   useEffect(() => {
-    // In a real app, this would fetch from localStorage or a backend
-    // For demo purposes, we're using mock data
-    const mockHistoryAlerts: Alert[] = [
-      {
-        id: "h1",
-        title: "אזעקות נשמעו בנהריה ובסביבתה",
-        description: "אזעקות נשמעו בנהריה ובסביבתה בעקבות חשש לירי רקטות מלבנון.",
-        location: "נהריה",
-        timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-        isRelevant: false,
-        source: "Ynet",
-        link: "https://example.com/news/h1",
-        isSecurityEvent: true
-      },
-      {
-        id: "h2",
-        title: "אזעקה בתל אביב: יירוט מוצלח של טיל",
-        description: "אזעקה נשמעה בתל אביב וסביבתה. דווח על יירוט מוצלח של טיל שנורה מעזה.",
-        location: "תל אביב",
-        timestamp: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-        isRelevant: true,
-        source: "מעריב",
-        link: "https://example.com/news/h2",
-        isSecurityEvent: true
-      },
-      {
-        id: "h3",
-        title: "חשד לחדירת מחבלים ביישובי הדרום",
-        description: "התראה על חשד לחדירת מחבלים באזור יישובי עוטף עזה. כוחות צה\"ל פועלים בשטח.",
-        location: "עוטף עזה",
-        timestamp: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
-        isRelevant: false,
-        source: "וואלה",
-        link: "https://example.com/news/h3",
-        isSecurityEvent: true
-      },
-      {
-        id: "h4",
-        title: "אזעקה במרכז הארץ: שני טילים יורטו בהצלחה",
-        description: "אזעקות נשמעו במרכז הארץ כולל תל אביב, רמת גן, חולון ובת ים. שני טילים יורטו על ידי כיפת ברזל.",
-        location: "תל אביב",
-        timestamp: new Date(Date.now() - 345600000).toISOString(), // 4 days ago
-        isRelevant: true,
-        source: "Ynet",
-        link: "https://example.com/news/h4",
-        isSecurityEvent: true
-      },
-      {
-        id: "h5",
-        title: "אזעקות בירושלים: האיום חלף",
-        description: "אזעקות נשמעו בירושלים וביישובי הסביבה. לאחר מספר דקות הוכרז כי האיום חלף.",
-        location: "ירושלים",
-        timestamp: new Date(Date.now() - 432000000).toISOString(), // 5 days ago
-        isRelevant: false,
-        source: "מעריב",
-        link: "https://example.com/news/h5",
-        isSecurityEvent: true
-      }
-    ];
-    
-    setAlerts(mockHistoryAlerts);
+    // טעינת ההיסטוריה האמיתית מהאחסון המקומי
+    const historyAlerts = getAlertHistory();
+    setAlerts(historyAlerts);
   }, []);
 
   const filteredAlerts = () => {
@@ -89,6 +46,15 @@ const History = () => {
       default:
         return alerts;
     }
+  };
+
+  const handleClearHistory = () => {
+    clearAlertHistory();
+    setAlerts([]);
+    toast({
+      title: "היסטוריה נוקתה",
+      description: "היסטוריית ההתראות נוקתה בהצלחה",
+    });
   };
 
   return (
@@ -109,7 +75,7 @@ const History = () => {
       </header>
       
       <main className="flex-1 container mx-auto px-4 py-6">
-        <div className="flex justify-end mb-4" dir="rtl">
+        <div className="flex justify-between mb-4" dir="rtl">
           <div className="w-full sm:w-48">
             <Select value={filter} onValueChange={setFilter}>
               <SelectTrigger>
@@ -123,6 +89,31 @@ const History = () => {
               </SelectContent>
             </Select>
           </div>
+          
+          {alerts.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="bg-white text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600">
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  נקה היסטוריה
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>נקה היסטוריית התראות</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    האם אתה בטוח שברצונך למחוק את כל היסטוריית ההתראות? פעולה זו אינה ניתנת לביטול.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>ביטול</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleClearHistory} className="bg-red-500 hover:bg-red-600">
+                    אישור מחיקה
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
         
         <div className="space-y-4">
