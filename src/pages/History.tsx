@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Alert } from "@/types";
 import { AlertCard } from "@/components/AlertCard";
@@ -23,7 +22,8 @@ const History = () => {
         timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
         isRelevant: false,
         source: "Ynet",
-        link: "https://example.com/news/h1"
+        link: "https://example.com/news/h1",
+        isSecurityEvent: true
       },
       {
         id: "h2",
@@ -33,7 +33,8 @@ const History = () => {
         timestamp: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
         isRelevant: true,
         source: "מעריב",
-        link: "https://example.com/news/h2"
+        link: "https://example.com/news/h2",
+        isSecurityEvent: true
       },
       {
         id: "h3",
@@ -43,7 +44,8 @@ const History = () => {
         timestamp: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
         isRelevant: false,
         source: "וואלה",
-        link: "https://example.com/news/h3"
+        link: "https://example.com/news/h3",
+        isSecurityEvent: true
       },
       {
         id: "h4",
@@ -53,7 +55,8 @@ const History = () => {
         timestamp: new Date(Date.now() - 345600000).toISOString(), // 4 days ago
         isRelevant: true,
         source: "Ynet",
-        link: "https://example.com/news/h4"
+        link: "https://example.com/news/h4",
+        isSecurityEvent: true
       },
       {
         id: "h5",
@@ -63,7 +66,8 @@ const History = () => {
         timestamp: new Date(Date.now() - 432000000).toISOString(), // 5 days ago
         isRelevant: false,
         source: "מעריב",
-        link: "https://example.com/news/h5"
+        link: "https://example.com/news/h5",
+        isSecurityEvent: true
       }
     ];
     
