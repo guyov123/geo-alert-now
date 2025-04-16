@@ -1,6 +1,5 @@
-
 import { RSSItem } from "@/types";
-import * as xml2js from "xml2js";
+import xml2js from "xml2js";
 
 // Real RSS feed proxy API to avoid CORS issues
 const RSS_PROXY_API = "https://api.allorigins.win/raw?url=";
@@ -66,7 +65,9 @@ async function fetchRssFeed(feedUrl: string): Promise<RSSItem[]> {
 // Function to parse XML data from RSS feeds
 async function parseRssFeed(xmlData: string, feedUrl: string): Promise<RSSItem[]> {
   try {
-    const parser = new xml2js.Parser({ explicitArray: false });
+    const parser = new xml2js.Parser({
+      explicitArray: false
+    });
     const result = await parser.parseStringPromise(xmlData);
     
     // Different RSS feeds have different structures
