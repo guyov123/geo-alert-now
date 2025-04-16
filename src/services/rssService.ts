@@ -1,47 +1,127 @@
 
 import { RSSItem } from "@/types";
+import * as xml2js from "xml2js";
 
-// This is a mock implementation for demonstration purposes
-// In a real app, you would use a proper RSS parser library or a backend service
-
+// Real RSS feed proxy API to avoid CORS issues
 const RSS_PROXY_API = "https://api.allorigins.win/raw?url=";
 
 // List of Israeli news RSS feeds
 const RSS_FEEDS = [
   "https://www.ynet.co.il/Integration/StoryRss2.xml",
   "https://rss.walla.co.il/feed/1",
-  "https://www.maariv.co.il/Rss/RssFeedsMain"
+  "https://www.maariv.co.il/Rss/RssFeedsMain",
+  "https://www.inn.co.il/Rss.aspx",
+  "https://www.haaretz.co.il/cmlink/1.1617535"
 ];
 
 export async function fetchRssFeeds(): Promise<RSSItem[]> {
   try {
-    // In a real app, we would fetch from actual RSS feeds
-    // For demo purposes, we'll return mock data
-    return getMockRssItems();
+    // Fetch from all RSS feeds in parallel
+    const feedPromises = RSS_FEEDS.map(feedUrl => fetchRssFeed(feedUrl));
+    const feedResults = await Promise.allSettled(feedPromises);
+    
+    // Collect successful results
+    const allItems: RSSItem[] = [];
+    feedResults.forEach(result => {
+      if (result.status === 'fulfilled') {
+        allItems.push(...result.value);
+      }
+    });
+    
+    // Sort by publication date, newest first
+    allItems.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+    
+    // If we couldn't fetch real feeds, return mock data
+    if (allItems.length === 0) {
+      console.warn("No items fetched from real RSS feeds, using mock data instead");
+      return getMockRssItems();
+    }
+    
+    // Take the 15 most recent items
+    return allItems.slice(0, 15);
   } catch (error) {
     console.error("Error fetching RSS feeds:", error);
-    return [];
+    // Fallback to mock data
+    return getMockRssItems();
   }
 }
 
-// This function would normally make actual fetch requests
-// but for the demo we're returning mock data
 async function fetchRssFeed(feedUrl: string): Promise<RSSItem[]> {
   try {
+    console.log(`Fetching RSS feed: ${feedUrl}`);
     const response = await fetch(`${RSS_PROXY_API}${encodeURIComponent(feedUrl)}`);
-    const data = await response.text();
     
-    // Parse XML and extract items
-    // This is a placeholder and would need a proper XML parser in a real app
+    if (!response.ok) {
+      throw new Error(`Failed to fetch feed: ${response.status} ${response.statusText}`);
+    }
     
-    return [];
+    const xmlData = await response.text();
+    return parseRssFeed(xmlData, feedUrl);
   } catch (error) {
     console.error(`Error fetching RSS feed ${feedUrl}:`, error);
     return [];
   }
 }
 
-// Mock data for demonstration
+// Function to parse XML data from RSS feeds
+async function parseRssFeed(xmlData: string, feedUrl: string): Promise<RSSItem[]> {
+  try {
+    const parser = new xml2js.Parser({ explicitArray: false });
+    const result = await parser.parseStringPromise(xmlData);
+    
+    // Different RSS feeds have different structures
+    const channel = result.rss?.channel;
+    if (!channel) {
+      console.error(`Invalid RSS format for ${feedUrl}`);
+      return [];
+    }
+    
+    // Handle array or single item
+    let items = channel.item;
+    if (!items) {
+      return [];
+    }
+    
+    // Make sure items is an array
+    if (!Array.isArray(items)) {
+      items = [items];
+    }
+    
+    return items.map((item: any) => {
+      // Get the domain as source
+      const source = new URL(feedUrl).hostname.replace('www.', '');
+      
+      // Normalize date format (feeds use different formats)
+      let pubDate = item.pubDate || item.date || new Date().toISOString();
+      
+      // Try to parse the date string into a standard format
+      try {
+        const date = new Date(pubDate);
+        if (!isNaN(date.getTime())) {
+          pubDate = date.toISOString();
+        }
+      } catch (e) {
+        // If date parsing fails, use current time
+        pubDate = new Date().toISOString();
+      }
+      
+      return {
+        title: item.title?.trim() || "ללא כותרת",
+        description: 
+          (item.description?.trim() || item.summary?.trim() || "אין פרטים נוספים")
+            .replace(/<\/?[^>]+(>|$)/g, ""), // Remove HTML tags
+        link: item.link || feedUrl,
+        pubDate: pubDate,
+        guid: item.guid?._?.trim() || item.guid?.trim() || item.id?.trim() || Math.random().toString(36).substr(2, 9)
+      };
+    });
+  } catch (error) {
+    console.error(`Error parsing RSS feed ${feedUrl}:`, error);
+    return [];
+  }
+}
+
+// Mock data as fallback in case real feeds fail
 function getMockRssItems(): RSSItem[] {
   return [
     {
