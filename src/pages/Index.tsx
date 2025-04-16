@@ -1,21 +1,37 @@
-
 import { useState, useEffect } from "react";
-import { Header } from "@/components/Header";
-import { AlertList } from "@/components/AlertList";
-import { Alert, LocationData } from "@/types";
+import { Alert, RSSItem } from "@/types";
 import { fetchRssFeeds } from "@/services/rssService";
 import { 
   classifyAlerts, 
   classifyAlertsWithAI, 
-  hasOpenAIApiKey,
-  setOpenAIApiKey
+  hasOpenAIApiKey 
 } from "@/services/alertService";
-import { getCurrentLocation, reverseGeocode } from "@/services/locationService";
-import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Clock, Key } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
-import { ApiKeyDialog } from "@/components/ApiKeyDialog";
+
+const refreshAlerts = async (userLocation: string) => {
+  try {
+    const rssItems = await fetchRssFeeds();
+    console.log(`Fetched ${rssItems.length} RSS items`); // New log for tracing
+    
+    let classifiedAlerts;
+    if (useAI && hasOpenAIApiKey()) {
+      try {
+        classifiedAlerts = await classifyAlertsWithAI(rssItems, userLocation);
+        console.log(`AI classified ${classifiedAlerts.length} security events`); // New log
+      } catch (error) {
+        console.error("AI classification failed:", error);
+        classifiedAlerts = classifyAlerts(rssItems, userLocation);
+        console.log(`Keyword classified ${classifiedAlerts.length} security events`); // New log
+      }
+    } else {
+      classifiedAlerts = classifyAlerts(rssItems, userLocation);
+      console.log(`Keyword classified ${classifiedAlerts.length} security events`); // New log
+    }
+    
+    setAlerts(classifiedAlerts);
+  } catch (error) {
+    console.error("Error refreshing alerts:", error);
+  }
+};
 
 const Index = () => {
   const { toast } = useToast();
@@ -27,20 +43,16 @@ const Index = () => {
   const [useAI, setUseAI] = useState<boolean>(false);
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState<boolean>(false);
   
-  // Initialize the app by getting user location and loading first alerts
   useEffect(() => {
-    // Check if API key is stored in localStorage
     const hasApiKey = hasOpenAIApiKey();
     setUseAI(hasApiKey);
     
     const initApp = async () => {
       try {
-        // Get user's location
         const userLocation = await getCurrentLocation();
         const cityName = await reverseGeocode(userLocation.latitude, userLocation.longitude);
         setLocation(cityName);
         
-        // Load initial alerts
         await refreshAlerts(cityName);
       } catch (error) {
         console.error("Error initializing app:", error);
@@ -58,7 +70,6 @@ const Index = () => {
     initApp();
   }, [toast]);
 
-  // Set up periodic refresh for alerts
   useEffect(() => {
     const interval = setInterval(() => {
       if (!snoozeActive) {
@@ -69,7 +80,6 @@ const Index = () => {
     return () => clearInterval(interval);
   }, [location, snoozeActive]);
 
-  // Check if snooze should be deactivated
   useEffect(() => {
     if (snoozeActive && snoozeEndTime && new Date() > snoozeEndTime) {
       setSnoozeActive(false);
@@ -81,7 +91,6 @@ const Index = () => {
       refreshAlerts(location);
     }
 
-    // Check every minute
     const interval = setInterval(() => {
       if (snoozeActive && snoozeEndTime && new Date() > snoozeEndTime) {
         setSnoozeActive(false);
@@ -96,39 +105,6 @@ const Index = () => {
 
     return () => clearInterval(interval);
   }, [snoozeActive, snoozeEndTime, location, toast]);
-
-  const refreshAlerts = async (userLocation: string) => {
-    try {
-      const rssItems = await fetchRssFeeds();
-      
-      // Use AI classification if available and enabled, otherwise fall back to keyword method
-      let classifiedAlerts;
-      if (useAI && hasOpenAIApiKey()) {
-        try {
-          classifiedAlerts = await classifyAlertsWithAI(rssItems, userLocation);
-          console.log("Used AI classification");
-        } catch (error) {
-          console.error("AI classification failed:", error);
-          classifiedAlerts = classifyAlerts(rssItems, userLocation);
-          console.log("Fell back to keyword classification");
-        }
-      } else {
-        classifiedAlerts = classifyAlerts(rssItems, userLocation);
-        console.log("Using keyword classification (AI not enabled)");
-      }
-      
-      setAlerts(classifiedAlerts);
-      
-      // Show toast for new relevant alerts (in a real app)
-      // This is simplified for the demo
-      const relevantAlerts = classifiedAlerts.filter(alert => alert.isRelevant);
-      if (relevantAlerts.length > 0 && !snoozeActive) {
-        // In a real app, compare with previous alerts to only notify about new ones
-      }
-    } catch (error) {
-      console.error("Error refreshing alerts:", error);
-    }
-  };
 
   const handleLocationChange = async (newLocation: string) => {
     setLocation(newLocation);
@@ -161,7 +137,6 @@ const Index = () => {
 
   const toggleAIClassification = () => {
     if (!useAI) {
-      // Check if API key is already stored
       if (hasOpenAIApiKey()) {
         setUseAI(true);
         toast({
@@ -170,11 +145,9 @@ const Index = () => {
         });
         refreshAlerts(location);
       } else {
-        // Open dialog to enter API key
         setApiKeyDialogOpen(true);
       }
     } else {
-      // Switch to keyword-based classification
       setUseAI(false);
       toast({
         title: "סיווג מבוסס מילות מפתח מופעל",
