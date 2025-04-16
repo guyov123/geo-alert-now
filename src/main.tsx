@@ -5,8 +5,14 @@ import App from "./App.tsx";
 import "./index.css";
 import { initializeApiKey } from "./apiKeyInit.ts";
 
-// Initialize API key if provided
-initializeApiKey();
+// Initialize API key asynchronously
+(async () => {
+  try {
+    await initializeApiKey();
+  } catch (error) {
+    console.error("Failed to initialize API key:", error);
+  }
+})();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
