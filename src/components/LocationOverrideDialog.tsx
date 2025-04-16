@@ -11,7 +11,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, Loader2 } from "lucide-react";
+import { getCurrentLocation } from "@/services/locationService";
+import { useToast } from "@/components/ui/use-toast";
 
 interface LocationOverrideDialogProps {
   open: boolean;
@@ -27,6 +29,8 @@ export function LocationOverrideDialog({
   onLocationChange,
 }: LocationOverrideDialogProps) {
   const [location, setLocation] = useState(currentLocation);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,11 +40,26 @@ export function LocationOverrideDialog({
     }
   };
 
-  const handleUseCurrentLocation = () => {
-    // This would use the browser's geolocation API in a real app
-    // For demo purposes, we'll just set a hardcoded value
-    onLocationChange("תל אביב");
-    onOpenChange(false);
+  const handleUseCurrentLocation = async () => {
+    setLoading(true);
+    try {
+      const locationData = await getCurrentLocation();
+      onLocationChange(locationData.city);
+      toast({
+        title: "המיקום עודכן",
+        description: `המיקום עודכן ל${locationData.city} בהתבסס על המיקום הנוכחי שלך`,
+      });
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error getting current location:", error);
+      toast({
+        title: "שגיאה בקבלת המיקום",
+        description: "לא ניתן לקבל את המיקום הנוכחי. אנא נסה שוב או הזן מיקום ידנית.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -63,8 +82,18 @@ export function LocationOverrideDialog({
             </div>
           </div>
           <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2">
-            <Button type="button" variant="outline" onClick={handleUseCurrentLocation} className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleUseCurrentLocation} 
+              className="flex items-center gap-2"
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MapPin className="h-4 w-4" />
+              )}
               השתמש במיקום הנוכחי
             </Button>
             <div className="flex justify-end gap-2 mt-2 sm:mt-0">

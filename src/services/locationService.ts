@@ -1,9 +1,6 @@
 
 import { LocationData } from "@/types";
 
-// In a real app, this would use the Geolocation API and a geocoding service
-// like Google Maps API or Nominatim
-
 // Sample locations in Israel for demonstration
 const SAMPLE_LOCATIONS: Record<string, LocationData> = {
   "תל אביב": {
@@ -33,21 +30,101 @@ const SAMPLE_LOCATIONS: Record<string, LocationData> = {
   }
 };
 
+/**
+ * Gets the current location using the device's GPS
+ */
 export async function getCurrentLocation(): Promise<LocationData> {
-  // In a real app, this would use the browser's geolocation API
-  // For demo purposes, we'll return Tel Aviv
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(SAMPLE_LOCATIONS["תל אביב"]);
-    }, 500);
-  });
+  // First try to use the browser's geolocation API
+  if (navigator.geolocation) {
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+      
+      // Use reverse geocoding to get the city name
+      const city = await reverseGeocode(latitude, longitude);
+      
+      return {
+        city,
+        latitude,
+        longitude
+      };
+    } catch (error) {
+      console.error("Error getting location:", error);
+      // Fall back to default location if there's an error
+      return SAMPLE_LOCATIONS["תל אביב"];
+    }
+  } else {
+    console.warn("Geolocation is not supported by this browser");
+    // Fall back to default location if geolocation is not supported
+    return SAMPLE_LOCATIONS["תל אביב"];
+  }
 }
 
+/**
+ * Performs reverse geocoding using Nominatim API (OpenStreetMap)
+ * Convert coordinates to a city name
+ */
 export async function reverseGeocode(latitude: number, longitude: number): Promise<string> {
-  // In a real app, this would call a geocoding API
-  // For demo purposes, we'll use a lookup with rough approximation
-  
-  // Find the closest location in our sample data
+  try {
+    // In a real production app, you should host your own instance of Nominatim or use a commercial service
+    // Nominatim usage policy requires a valid user agent: https://operations.osmfoundation.org/policies/nominatim/
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'SafeSpotApp/1.0', // Required by Nominatim's usage policy
+        'Accept-Language': 'he' // Prefer Hebrew results
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Extract city from the response
+    // Nominatim might return different address structures
+    let city = "";
+    
+    if (data.address) {
+      // Try different fields that might contain the city name
+      city = data.address.city || 
+             data.address.town || 
+             data.address.village || 
+             data.address.municipality ||
+             data.address.suburb;
+    }
+    
+    if (!city && data.display_name) {
+      // If we couldn't extract a specific city field, use the first part of display_name
+      city = data.display_name.split(',')[0];
+    }
+    
+    // If we still don't have a city, fall back to finding the closest known location
+    if (!city) {
+      city = findClosestKnownLocation(latitude, longitude);
+    }
+    
+    return city;
+  } catch (error) {
+    console.error("Error in reverse geocoding:", error);
+    // Fall back to calculating the closest known location
+    return findClosestKnownLocation(latitude, longitude);
+  }
+}
+
+/**
+ * Finds the closest known location in our sample data
+ */
+function findClosestKnownLocation(latitude: number, longitude: number): string {
   let closestCity = "לא ידוע";
   let minDistance = Number.MAX_VALUE;
   
