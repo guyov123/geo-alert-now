@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { AlertList } from "@/components/AlertList";
 import { Alert, LocationData } from "@/types";
 import { fetchRssFeeds } from "@/services/rssService";
-import { classifyAlerts } from "@/services/alertService";
+import { classifyAlerts, classifyAlertsWithAI } from "@/services/alertService";
 import { getCurrentLocation, reverseGeocode } from "@/services/locationService";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Clock } from "lucide-react";
@@ -18,6 +18,7 @@ const Index = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [snoozeActive, setSnoozeActive] = useState<boolean>(false);
   const [snoozeEndTime, setSnoozeEndTime] = useState<Date | null>(null);
+  const [useAI, setUseAI] = useState<boolean>(!!import.meta.env.VITE_OPENAI_API_KEY);
 
   // Initialize the app by getting user location and loading first alerts
   useEffect(() => {
@@ -88,7 +89,23 @@ const Index = () => {
   const refreshAlerts = async (userLocation: string) => {
     try {
       const rssItems = await fetchRssFeeds();
-      const classifiedAlerts = classifyAlerts(rssItems, userLocation);
+      
+      // Use AI classification if available, otherwise fall back to keyword method
+      let classifiedAlerts;
+      if (useAI) {
+        try {
+          classifiedAlerts = await classifyAlertsWithAI(rssItems, userLocation);
+          console.log("Used AI classification");
+        } catch (error) {
+          console.error("AI classification failed:", error);
+          classifiedAlerts = classifyAlerts(rssItems, userLocation);
+          console.log("Fell back to keyword classification");
+        }
+      } else {
+        classifiedAlerts = classifyAlerts(rssItems, userLocation);
+        console.log("Using keyword classification (AI not enabled)");
+      }
+      
       setAlerts(classifiedAlerts);
       
       // Show toast for new relevant alerts (in a real app)
@@ -131,6 +148,26 @@ const Index = () => {
     }
   };
 
+  const toggleAIClassification = () => {
+    if (!useAI && !import.meta.env.VITE_OPENAI_API_KEY) {
+      toast({
+        title: "נדרש מפתח API של OpenAI",
+        description: "כדי להשתמש בסיווג AI, יש להגדיר את VITE_OPENAI_API_KEY",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setUseAI(!useAI);
+    toast({
+      title: useAI ? "סיווג מבוסס מילות מפתח מופעל" : "סיווג AI מופעל",
+      description: useAI ? 
+        "עברנו לסיווג פשוט המבוסס על מילות מפתח" : 
+        "עברנו לסיווג חכם המבוסס על AI"
+    });
+    refreshAlerts(location);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-geoalert-gray">
@@ -154,7 +191,17 @@ const Index = () => {
       />
       
       <main className="flex-1 container mx-auto px-4 py-6">
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-between mb-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={toggleAIClassification}
+            className="flex items-center gap-1"
+          >
+            <span>{useAI ? "סיווג AI" : "סיווג רגיל"}</span>
+            <div className={`h-2 w-2 rounded-full ${useAI ? "bg-green-500" : "bg-gray-400"}`}></div>
+          </Button>
+          
           <Link to="/history">
             <Button variant="outline" size="sm" className="flex items-center gap-1">
               <Clock className="h-4 w-4 text-geoalert-turquoise" />

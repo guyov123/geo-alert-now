@@ -11,14 +11,21 @@ interface AlertListProps {
 
 export function AlertList({ alerts }: AlertListProps) {
   const [relevantCount, setRelevantCount] = useState(0);
+  const [nearbyAlerts, setNearbyAlerts] = useState<Alert[]>([]);
   
   useEffect(() => {
     setRelevantCount(alerts.filter(alert => alert.isRelevant).length);
+    
+    // For the "nearby" tab, include alerts that have known locations
+    // but might not have been marked as directly relevant to the user's city
+    const locationKnown = alerts.filter(alert => 
+      alert.location && alert.location !== "לא ידוע"
+    );
+    setNearbyAlerts(locationKnown);
   }, [alerts]);
 
   // Split alerts by relevance for different tabs
   const relevantAlerts = alerts.filter(alert => alert.isRelevant);
-  const otherAlerts = alerts.filter(alert => !alert.isRelevant);
   
   if (alerts.length === 0) {
     return (
@@ -42,7 +49,7 @@ export function AlertList({ alerts }: AlertListProps) {
             )}
           </TabsTrigger>
           <TabsTrigger value="all" className="flex-1">כל ההתראות</TabsTrigger>
-          <TabsTrigger value="nearby" className="flex-1">קרוב אליי</TabsTrigger>
+          <TabsTrigger value="nearby" className="flex-1">לפי מיקום</TabsTrigger>
         </TabsList>
         <TabsContent value="relevant" className="mt-4 space-y-4">
           {relevantAlerts.length > 0 ? (
@@ -67,10 +74,20 @@ export function AlertList({ alerts }: AlertListProps) {
           )}
         </TabsContent>
         <TabsContent value="nearby" className="mt-4 space-y-4">
-          {/* In a real app, this would show alerts from nearby locations */}
-          <div className="text-center py-8 text-gray-500" dir="rtl">
-            <p>פיצ׳ר זה יהיה זמין בגרסה הבאה</p>
-          </div>
+          {nearbyAlerts.length > 0 ? (
+            <div>
+              <div className="mb-3 text-sm text-gray-500 text-right">
+                התראות ממוינות לפי מיקום
+              </div>
+              {nearbyAlerts.map(alert => (
+                <AlertCard key={alert.id} alert={alert} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500" dir="rtl">
+              <p>אין התראות עם מיקום ידוע כרגע</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

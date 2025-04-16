@@ -2,7 +2,7 @@
 import { Alert, RSSItem, LocationData } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
-// Keywords that indicate security incidents in Hebrew
+// Keywords that indicate security incidents in Hebrew (as backup for when AI is not available)
 const SECURITY_KEYWORDS = [
   "אזעקה", "התרעה", "פיגוע", "ירי", "טיל", "רקטה", "חדירה", "מחבל",
   "פצוע", "נפגע", "תקיפה", "מטח", "צבע אדום", "צבא", "צה״ל", "חיזבאללה", "חמאס"
@@ -19,9 +19,146 @@ const LOCATION_KEYWORDS = {
   "אשקלון": ["אשקלון"],
   "עוטף עזה": ["עוטף עזה", "שדרות", "נתיב העשרה", "עזה", "כפר עזה"],
   "גליל עליון": ["גליל עליון", "קריית שמונה", "מטולה", "כפר גלעדי"],
-  "רמת הגולן": ["רמת הגולן", "קצרין", "מג'דל שמס"]
+  "רמת הגולן": ["רמת הגולן", "קצרין", "מג'דל שמס"],
+  "חווארה": ["חווארה", "חוארה", "מחסום חווארה"],
+  "שומרון": ["שומרון"]
 };
 
+export async function classifyAlertsWithAI(rssItems: RSSItem[], userLocation: string): Promise<Alert[]> {
+  try {
+    // Process items in small batches to avoid overwhelming the OpenAI API
+    const batchSize = 5;
+    const batches = [];
+    
+    for (let i = 0; i < rssItems.length; i += batchSize) {
+      batches.push(rssItems.slice(i, i + batchSize));
+    }
+    
+    let classifiedAlerts: Alert[] = [];
+    
+    for (const batch of batches) {
+      // Process each batch in parallel
+      const promises = batch.map(item => classifySingleAlertWithAI(item, userLocation));
+      const batchResults = await Promise.all(promises);
+      classifiedAlerts = [...classifiedAlerts, ...batchResults];
+    }
+    
+    return classifiedAlerts;
+  } catch (error) {
+    console.error("Error using AI classification, falling back to keyword method:", error);
+    // Fallback to the keyword-based method
+    return classifyAlerts(rssItems, userLocation);
+  }
+}
+
+async function classifySingleAlertWithAI(item: RSSItem, userLocation: string): Promise<Alert> {
+  try {
+    // Combine title and description for analysis
+    const fullText = `${item.title} ${item.description}`;
+    
+    // Get API key from environment (in a real app) or use a temporary one for demo
+    const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+    
+    if (!OPENAI_API_KEY) {
+      console.warn("No OpenAI API key found, falling back to keyword method");
+      return createAlertFromKeywords(item, userLocation);
+    }
+    
+    const prompt = buildPrompt(fullText);
+    
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0
+      })
+    });
+    
+    if (!response.ok) {
+      console.error("OpenAI API error:", await response.text());
+      return createAlertFromKeywords(item, userLocation);
+    }
+    
+    const data = await response.json();
+    const aiResponse = data.choices[0].message.content;
+    
+    // Parse the JSON response
+    let result;
+    try {
+      result = JSON.parse(aiResponse);
+    } catch (e) {
+      console.error("Error parsing AI response:", e, aiResponse);
+      return createAlertFromKeywords(item, userLocation);
+    }
+    
+    // Check if the location is relevant to the user
+    const isRelevant = result.is_security_event && 
+      result.location && 
+      result.location !== "null" && 
+      isLocationRelevant(result.location, userLocation);
+    
+    return {
+      id: uuidv4(),
+      title: item.title,
+      description: item.description,
+      location: result.location === "null" ? "לא ידוע" : result.location,
+      timestamp: item.pubDate,
+      isRelevant: isRelevant,
+      source: extractSourceFromLink(item.link),
+      link: item.link
+    };
+  } catch (error) {
+    console.error("Error classifying alert with AI:", error);
+    return createAlertFromKeywords(item, userLocation);
+  }
+}
+
+function buildPrompt(text: string): string {
+  return `
+טקסט: "${text}"
+
+1. האם מדובר באירוע ביטחוני? ענה true או false בלבד.
+2. אם מוזכר מיקום (עיר, יישוב, אזור גאוגרפי), כתוב את שם המקום בלבד.
+3. אם לא ניתן להבין מה המיקום – כתוב null.
+
+ענה בדיוק בפורמט JSON הבא:
+{
+  "is_security_event": true/false,
+  "location": "שם המקום או null"
+}
+`;
+}
+
+function createAlertFromKeywords(item: RSSItem, userLocation: string): Alert {
+  // If AI classification fails, use the existing keyword method
+  const isSecurityAlert = SECURITY_KEYWORDS.some(keyword => 
+    item.title.includes(keyword) || item.description.includes(keyword)
+  );
+
+  const detectedLocation = detectLocation(item.title, item.description);
+  
+  const isRelevant = isSecurityAlert && 
+    userLocation && 
+    isLocationRelevant(detectedLocation, userLocation);
+
+  return {
+    id: uuidv4(),
+    title: item.title,
+    description: item.description,
+    location: detectedLocation || "לא ידוע",
+    timestamp: item.pubDate,
+    isRelevant: isRelevant,
+    source: extractSourceFromLink(item.link),
+    link: item.link
+  };
+}
+
+// The existing keyword-based classification method
 export function classifyAlerts(rssItems: RSSItem[], userLocation: string): Alert[] {
   return rssItems.map(item => {
     // Check if the item contains security keywords
@@ -92,7 +229,9 @@ function extractSourceFromLink(link: string): string {
       'ynet.co.il': 'Ynet',
       'maariv.co.il': 'מעריב',
       'walla.co.il': 'וואלה',
-      'example.com': 'דוגמה' // For our mock data
+      'example.com': 'דוגמה', // For our mock data
+      'inn.co.il': 'ערוץ 7',
+      'haaretz.co.il': 'הארץ'
     };
     
     return sourceMap[hostname] || hostname;
