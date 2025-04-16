@@ -1,20 +1,62 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Alert, RSSItem } from '@/types';
-import { getOpenAIApiKey, saveOpenAIApiKey, hasOpenAIApiKey as hasSupabaseApiKey } from './supabaseClient';
+import { getOpenAIApiKeyFromSupabase, saveOpenAIApiKey, hasOpenAIApiKeyInSupabase } from './supabaseClient';
 
-// פונקציות סיוע לשימוש בלקוד לאחור - לשמור על תאימות
+// פונקציות ניהול מפתח API
 
-// פונקציית קריאה ישנה מ-localStorage - תעבור לפונקציה החדשה
+/**
+ * קבלת מפתח API מהאחסון המקומי
+ */
 export function getOpenAIApiKeyFromLocal(): string | null {
   return localStorage.getItem('openai_api_key');
 }
 
-// בדיקת קיום מפתח ב-localStorage - לתאימות לאחור
-export function hasOpenAIApiKey(): boolean {
+/**
+ * בדיקה אם קיים מפתח API באחסון המקומי
+ */
+export function hasLocalApiKey(): boolean {
   return localStorage.getItem('openai_api_key') !== null;
 }
 
-// שמירת מפתח ב-localStorage ובסופהבייס
+/**
+ * קבלת מפתח API - מנסה קודם בסופהבייס ואז באחסון המקומי
+ */
+export async function getOpenAIApiKey(): Promise<string | null> {
+  try {
+    // ניסיון לקבל מפתח מסופהבייס תחילה
+    const supabaseKey = await getOpenAIApiKeyFromSupabase();
+    if (supabaseKey) return supabaseKey;
+    
+    // אם אין מפתח בסופהבייס, ננסה לקבל מהאחסון המקומי
+    return getOpenAIApiKeyFromLocal();
+  } catch (error) {
+    console.error('שגיאה בקבלת מפתח ה-API:', error);
+    // במקרה של שגיאה בסופהבייס, ננסה לקבל מהאחסון המקומי
+    return getOpenAIApiKeyFromLocal();
+  }
+}
+
+/**
+ * בדיקה אם קיים מפתח API (בסופהבייס או באחסון המקומי)
+ */
+export async function hasOpenAIApiKey(): Promise<boolean> {
+  try {
+    // ניסיון לבדוק בסופהבייס תחילה
+    const hasSupabaseKey = await hasOpenAIApiKeyInSupabase();
+    if (hasSupabaseKey) return true;
+    
+    // אם אין מפתח בסופהבייס, נבדוק באחסון המקומי
+    return hasLocalApiKey();
+  } catch (error) {
+    console.error('שגיאה בבדיקת קיום מפתח ה-API:', error);
+    // במקרה של שגיאה בסופהבייס, נבדוק באחסון המקומי
+    return hasLocalApiKey();
+  }
+}
+
+/**
+ * שמירת מפתח API בסופהבייס ובאחסון המקומי
+ */
 export async function setOpenAIApiKey(key: string): Promise<void> {
   try {
     // שמירה מקומית קודם
@@ -22,8 +64,6 @@ export async function setOpenAIApiKey(key: string): Promise<void> {
     
     // ניסיון לשמור בסופהבייס
     await saveOpenAIApiKey(key);
-    
-    return;
   } catch (error) {
     console.error('שגיאה בשמירת מפתח ה-API:', error);
     // אם יש שגיאה בסופהבייס, לפחות המפתח נשמר מקומית
@@ -32,25 +72,13 @@ export async function setOpenAIApiKey(key: string): Promise<void> {
 
 // פונקציות סיוע
 
-function getOpenAIApiKey(): string | null {
-  return localStorage.getItem('openai_api_key');
-}
-
-export function hasOpenAIApiKey(): boolean {
-  return localStorage.getItem('openai_api_key') !== null;
-}
-
-export function setOpenAIApiKey(key: string): void {
-  localStorage.setItem('openai_api_key', key);
-}
-
 function buildPrompt(text: string): string {
   return `
 טקסט: "${text}"
 
 1. האם מדובר באירוע ביטחוני? ענה true או false בלבד.
 2. אם מוזכר מיקום (עיר, יישוב, אזור גאוגרפי), כתוב את שם המקום בלבד.
-3. אם לא ניתן להבין מה המיקום – כתוב null.
+3. אם לא ניתן להב��ן מה המיקום – כתוב null.
 
 ענה בדיוק בפורמט JSON הבא:
 {
@@ -101,13 +129,8 @@ async function classifySingleAlertWithAI(item: RSSItem, userLocation: string): P
   try {
     const fullText = `${item.title} ${item.description}`;
     
-    // קבלת מפתח API - מנסה קודם מסופהבייס ואז מהאחסון המקומי
-    let apiKey = await getOpenAIApiKey();
-    
-    // אם אין מפתח בסופהבייס, ננסה לקבל מהאחסון המקומי הישן
-    if (!apiKey) {
-      apiKey = getOpenAIApiKeyFromLocal();
-    }
+    // קבלת מפתח API באמצעות הפונקציה המאוחדת
+    const apiKey = await getOpenAIApiKey();
     
     if (!apiKey) {
       console.warn("No OpenAI API key found, falling back to keyword method");

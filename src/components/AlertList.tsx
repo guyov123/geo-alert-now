@@ -4,7 +4,7 @@ import { AlertCard } from "./AlertCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
 import { Loader2, Brain } from "lucide-react";
-import { hasOpenAIApiKey } from "@/services/alertService";
+import { hasLocalApiKey } from "@/services/alertService";
 
 interface AlertListProps {
   alerts: Alert[];
@@ -26,7 +26,16 @@ export function AlertList({ alerts }: AlertListProps) {
     setNearbyAlerts(locationKnown);
     
     // Check if AI classification is being used
-    setUsingAI(hasOpenAIApiKey());
+    const checkAI = async () => {
+      try {
+        // סופהבייס מחייב async/await, אך יתכן שנצטרך להשתמש בגרסה הישנה עבור תצוגה מיידית
+        setUsingAI(hasLocalApiKey());
+      } catch (error) {
+        console.error("Error checking API key:", error);
+      }
+    };
+    
+    checkAI();
   }, [alerts]);
 
   // Split alerts by relevance for different tabs

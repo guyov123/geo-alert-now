@@ -44,12 +44,8 @@ export async function saveOpenAIApiKey(key: string): Promise<void> {
 /**
  * קריאת מפתח API של OpenAI מסופהבייס
  */
-export async function getOpenAIApiKey(): Promise<string | null> {
+export async function getOpenAIApiKeyFromSupabase(): Promise<string | null> {
   try {
-    // קודם כל בדיקה אם המפתח קיים ב-localStorage
-    const localKey = localStorage.getItem('openai_api_key');
-    if (localKey) return localKey;
-    
     // בדיקה אם המשתמש מחובר
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -85,7 +81,7 @@ export async function getOpenAIApiKey(): Promise<string | null> {
 /**
  * בדיקה אם קיים מפתח API של OpenAI
  */
-export async function hasOpenAIApiKey(): Promise<boolean> {
-  const key = await getOpenAIApiKey();
+export async function hasOpenAIApiKeyInSupabase(): Promise<boolean> {
+  const key = await getOpenAIApiKeyFromSupabase();
   return key !== null && key.length > 0;
 }

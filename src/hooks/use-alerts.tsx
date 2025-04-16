@@ -6,9 +6,8 @@ import { fetchRssFeeds } from "@/services/rssService";
 import { 
   classifyAlerts, 
   classifyAlertsWithAI, 
-  hasOpenAIApiKey 
+  hasOpenAIApiKey
 } from "@/services/alertService";
-import { hasOpenAIApiKey as hasSupabaseApiKey } from "@/services/supabaseClient";
 
 export function useAlerts(location: string, snoozeActive: boolean) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -58,25 +57,14 @@ export function useAlerts(location: string, snoozeActive: boolean) {
     }
   };
 
-  // פונקציה לבדיקת קיום מפתח API - תבדוק בסופהבייס וגם בלקוד לאחור
+  // פונקציה לבדיקת קיום מפתח API
   const checkForApiKey = async () => {
     try {
-      // תחילה ננסה לבדוק בסופהבייס
-      const hasKey = await hasSupabaseApiKey();
-      
-      if (hasKey) {
-        setUseAI(true);
-        return;
-      }
-      
-      // אם אין מפתח בסופהבייס, ננסה בלקוד לאחור
-      const hasLocalKey = hasOpenAIApiKey();
-      setUseAI(hasLocalKey);
+      const hasKey = await hasOpenAIApiKey();
+      setUseAI(hasKey);
     } catch (error) {
       console.error("Error checking for API key:", error);
-      // במקרה של שגיאה, ננסה להשתמש באחסון מקומי
-      const hasLocalKey = hasOpenAIApiKey();
-      setUseAI(hasLocalKey);
+      setUseAI(false);
     }
   };
 
