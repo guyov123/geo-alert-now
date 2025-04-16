@@ -1,17 +1,12 @@
-
 import { RSSItem } from "@/types";
 import * as xml2js from "xml2js";
 
 // Real RSS feed proxy API to avoid CORS issues
 const RSS_PROXY_API = "https://api.allorigins.win/raw?url=";
 
-// List of Israeli news RSS feeds
+// Use only Ynet RSS feed which we know is working
 const RSS_FEEDS = [
-  "https://www.ynet.co.il/Integration/StoryRss2.xml",
-  "https://rss.walla.co.il/feed/1",
-  "https://www.maariv.co.il/Rss/RssFeedsMain",
-  "https://www.inn.co.il/Rss.aspx",
-  "https://www.haaretz.co.il/cmlink/1.1617535"
+  "https://www.ynet.co.il/Integration/StoryRss2.xml"
 ];
 
 export async function fetchRssFeeds(): Promise<RSSItem[]> {
@@ -39,7 +34,7 @@ export async function fetchRssFeeds(): Promise<RSSItem[]> {
     
     console.log("Successfully fetched RSS items:", allItems.length);
     
-    // Take the 15 most recent items
+    // Take the most recent items
     return allItems.slice(0, 15);
   } catch (error) {
     console.error("Error fetching RSS feeds:", error);
@@ -71,81 +66,82 @@ async function fetchRssFeed(feedUrl: string): Promise<RSSItem[]> {
   }
 }
 
-// Function to parse XML data from RSS feeds
+// Fixed function to parse XML data from RSS feeds
 async function parseRssFeed(xmlData: string, feedUrl: string): Promise<RSSItem[]> {
   try {
-    // Create parser without using EventEmitter to avoid removeAllListeners error
-    const parser = new xml2js.Parser({
+    // Create a new parser with correct options
+    const parserOptions = {
       explicitArray: false,
       emptyTag: null
-    });
+    };
     
-    // Manual parsing to avoid removeAllListeners error
-    return new Promise((resolve, reject) => {
+    // Parse XML using Promise instead of EventEmitter
+    const result = await new Promise<any>((resolve, reject) => {
+      // Create a new parser instance each time
+      const parser = new xml2js.Parser(parserOptions);
+      
       parser.parseString(xmlData, (err, result) => {
         if (err) {
-          console.error(`XML parsing error for ${feedUrl}:`, err);
-          resolve([]);
+          reject(err);
           return;
         }
-        
-        try {
-          // Different RSS feeds have different structures
-          const channel = result?.rss?.channel;
-          if (!channel) {
-            console.error(`Invalid RSS format for ${feedUrl}`);
-            resolve([]);
-            return;
-          }
-          
-          // Handle array or single item
-          let items = channel.item;
-          if (!items) {
-            resolve([]);
-            return;
-          }
-          
-          // Make sure items is an array
-          if (!Array.isArray(items)) {
-            items = [items];
-          }
-          
-          const parsedItems = items.map((item: any) => {
-            // Get the domain as source
-            const source = new URL(feedUrl).hostname.replace('www.', '');
-            
-            // Normalize date format (feeds use different formats)
-            let pubDate = item.pubDate || item.date || new Date().toISOString();
-            
-            // Try to parse the date string into a standard format
-            try {
-              const date = new Date(pubDate);
-              if (!isNaN(date.getTime())) {
-                pubDate = date.toISOString();
-              }
-            } catch (e) {
-              // If date parsing fails, use current time
-              pubDate = new Date().toISOString();
-            }
-            
-            return {
-              title: item.title?.trim() || "ללא כותרת",
-              description: 
-                (item.description?.trim() || item.summary?.trim() || "אין פרטים נוספים")
-                  .replace(/<\/?[^>]+(>|$)/g, ""), // Remove HTML tags
-              link: item.link || feedUrl,
-              pubDate: pubDate,
-              guid: item.guid?._?.trim() || item.guid?.trim() || item.id?.trim() || Math.random().toString(36).substr(2, 9)
-            };
-          });
-          
-          resolve(parsedItems);
-        } catch (error) {
-          console.error(`Error processing RSS feed ${feedUrl}:`, error);
-          resolve([]);
-        }
+        resolve(result);
       });
     });
+    
+    try {
+      // Extract channel and items
+      const channel = result?.rss?.channel;
+      if (!channel) {
+        console.error(`Invalid RSS format for ${feedUrl}`);
+        return [];
+      }
+      
+      // Handle array or single item
+      let items = channel.item;
+      if (!items) {
+        return [];
+      }
+      
+      // Make sure items is an array
+      if (!Array.isArray(items)) {
+        items = [items];
+      }
+      
+      // Map RSS items to our format
+      return items.map((item: any) => {
+        // Get the domain as source
+        const source = new URL(feedUrl).hostname.replace('www.', '');
+        
+        // Normalize date format
+        let pubDate = item.pubDate || item.date || new Date().toISOString();
+        
+        // Try to parse the date string
+        try {
+          const date = new Date(pubDate);
+          if (!isNaN(date.getTime())) {
+            pubDate = date.toISOString();
+          }
+        } catch (e) {
+          pubDate = new Date().toISOString();
+        }
+        
+        // Clean up description (remove HTML tags)
+        const description = (item.description?.trim() || item.summary?.trim() || "אין פרטים נוספים")
+          .replace(/<\/?[^>]+(>|$)/g, "");
+        
+        return {
+          title: item.title?.trim() || "ללא כותרת",
+          description: description,
+          link: item.link || feedUrl,
+          pubDate: pubDate,
+          guid: item.guid?._?.trim() || item.guid?.trim() || item.id?.trim() || Math.random().toString(36).substr(2, 9)
+        };
+      });
+    } catch (error) {
+      console.error(`Error processing RSS feed ${feedUrl}:`, error);
+      return [];
+    }
   } catch (error) {
     console.error(`Error parsing RSS feed ${feedUrl}:`, error);
     return [];
