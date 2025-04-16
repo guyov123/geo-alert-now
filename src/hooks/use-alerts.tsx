@@ -8,6 +8,7 @@ import {
   classifyAlertsWithAI, 
   hasOpenAIApiKey 
 } from "@/services/alertService";
+import { hasOpenAIApiKey as hasSupabaseApiKey } from "@/services/supabaseClient";
 
 export function useAlerts(location: string, snoozeActive: boolean) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -25,7 +26,8 @@ export function useAlerts(location: string, snoozeActive: boolean) {
       console.log(`Fetched ${rssItems.length} RSS items`); 
       
       let classifiedAlerts;
-      if (useAI && hasOpenAIApiKey()) {
+      // בדיקה אם להשתמש ב-AI
+      if (useAI) {
         try {
           classifiedAlerts = await classifyAlertsWithAI(rssItems, userLocation);
           console.log(`AI classified ${classifiedAlerts.length} security events`);
@@ -56,24 +58,45 @@ export function useAlerts(location: string, snoozeActive: boolean) {
     }
   };
 
-  // Initialize AI state based on API key existence
+  // פונקציה לבדיקת קיום מפתח API - תבדוק בסופהבייס וגם בלקוד לאחור
+  const checkForApiKey = async () => {
+    try {
+      // תחילה ננסה לבדוק בסופהבייס
+      const hasKey = await hasSupabaseApiKey();
+      
+      if (hasKey) {
+        setUseAI(true);
+        return;
+      }
+      
+      // אם אין מפתח בסופהבייס, ננסה בלקוד לאחור
+      const hasLocalKey = hasOpenAIApiKey();
+      setUseAI(hasLocalKey);
+    } catch (error) {
+      console.error("Error checking for API key:", error);
+      // במקרה של שגיאה, ננסה להשתמש באחסון מקומי
+      const hasLocalKey = hasOpenAIApiKey();
+      setUseAI(hasLocalKey);
+    }
+  };
+
+  // בדיקת קיום מפתח API בטעינת הדף
   useEffect(() => {
-    const hasApiKey = hasOpenAIApiKey();
-    setUseAI(hasApiKey);
+    checkForApiKey();
   }, []);
 
-  // Initial load of alerts
+  // טעינת התראות בטעינת הדף
   useEffect(() => {
     refreshAlerts(location);
   }, [location]);
 
-  // Regular refresh of alerts
+  // רענון תקופתי של התראות
   useEffect(() => {
     const interval = setInterval(() => {
       if (!snoozeActive) {
         refreshAlerts(location);
       }
-    }, 60000); // Refresh every minute
+    }, 60000); // רענון כל דקה
 
     return () => clearInterval(interval);
   }, [location, snoozeActive]);
@@ -85,6 +108,7 @@ export function useAlerts(location: string, snoozeActive: boolean) {
     error,
     useAI,
     setUseAI,
-    refreshAlerts
+    refreshAlerts,
+    checkForApiKey // מייצאים את הפונקציה כדי שאפשר יהיה לקרוא לה אחרי שינוי מפתח
   };
 }

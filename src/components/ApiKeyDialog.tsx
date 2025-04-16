@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { hasOpenAIApiKey, setOpenAIApiKey } from "@/services/alertService";
+import { setOpenAIApiKey } from "@/services/alertService";
 import { useToast } from "@/components/ui/use-toast";
 
 interface ApiKeyDialogProps {
@@ -18,7 +18,7 @@ export function ApiKeyDialog({ open, onOpenChange, onSuccess }: ApiKeyDialogProp
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSaveApiKey = () => {
+  const handleSaveApiKey = async () => {
     if (!apiKey || apiKey.length < 20) {
       toast({
         title: "מפתח API לא תקין",
@@ -30,24 +30,24 @@ export function ApiKeyDialog({ open, onOpenChange, onSuccess }: ApiKeyDialogProp
 
     setLoading(true);
     try {
-      // Save the API key
-      setOpenAIApiKey(apiKey);
+      // שמירת המפתח בסופהבייס
+      await setOpenAIApiKey(apiKey);
       
       toast({
         title: "מפתח ה-API נשמר בהצלחה",
         description: "האפליקציה תשתמש כעת בסיווג AI חכם באמצעות OpenAI",
       });
       
-      // Call the success callback
+      // קריאה לקולבק של הצלחה
       onSuccess();
       
-      // Close the dialog
+      // סגירת הדיאלוג
       onOpenChange(false);
     } catch (error) {
       console.error("Error saving API key:", error);
       toast({
         title: "שגיאה בשמירת מפתח ה-API",
-        description: "אנא נסה שוב מאוחר יותר",
+        description: "אנא נסה שוב מאוחר יותר או התחבר לחשבון",
         variant: "destructive",
       });
     } finally {
@@ -62,7 +62,7 @@ export function ApiKeyDialog({ open, onOpenChange, onSuccess }: ApiKeyDialogProp
           <DialogTitle>הגדרת מפתח API של OpenAI</DialogTitle>
           <DialogDescription>
             הזן את מפתח ה-API של OpenAI כדי להפעיל סיווג התראות חכם באמצעות AI.
-            המפתח יישמר באופן מקומי במכשיר שלך ולא יישלח לשרת.
+            המפתח יישמר באופן מאובטח בחשבון שלך וגם מקומית במכשיר שלך.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -77,7 +77,7 @@ export function ApiKeyDialog({ open, onOpenChange, onSuccess }: ApiKeyDialogProp
             />
           </div>
           <p className="text-sm text-gray-500">
-            המפתח יישמר ב-localStorage בדפדפן שלך. אם אתה משתמש במחשב משותף, זכור להסיר את המפתח לאחר השימוש.
+            המפתח יישמר בחשבון שלך וגם ב-localStorage בדפדפן שלך. המפתח יהיה זמין בכל המכשירים שבהם תתחבר לחשבון.
           </p>
         </div>
         <DialogFooter>

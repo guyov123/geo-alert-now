@@ -27,7 +27,8 @@ const Index = () => {
     error,
     useAI, 
     setUseAI, 
-    refreshAlerts 
+    refreshAlerts,
+    checkForApiKey
   } = useAlerts(location, false);
 
   const {
@@ -58,8 +59,9 @@ const Index = () => {
     }
   };
   
-  const handleApiKeySuccess = () => {
-    setUseAI(true);
+  const handleApiKeySuccess = async () => {
+    // בדיקת מפתח API מחדש אחרי שמירה מוצלחת
+    await checkForApiKey();
     refreshAlerts(location);
   };
 

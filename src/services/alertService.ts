@@ -1,6 +1,34 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { Alert, RSSItem } from '@/types';
+import { getOpenAIApiKey, saveOpenAIApiKey, hasOpenAIApiKey as hasSupabaseApiKey } from './supabaseClient';
+
+// פונקציות סיוע לשימוש בלקוד לאחור - לשמור על תאימות
+
+// פונקציית קריאה ישנה מ-localStorage - תעבור לפונקציה החדשה
+export function getOpenAIApiKeyFromLocal(): string | null {
+  return localStorage.getItem('openai_api_key');
+}
+
+// בדיקת קיום מפתח ב-localStorage - לתאימות לאחור
+export function hasOpenAIApiKey(): boolean {
+  return localStorage.getItem('openai_api_key') !== null;
+}
+
+// שמירת מפתח ב-localStorage ובסופהבייס
+export async function setOpenAIApiKey(key: string): Promise<void> {
+  try {
+    // שמירה מקומית קודם
+    localStorage.setItem('openai_api_key', key);
+    
+    // ניסיון לשמור בסופהבייס
+    await saveOpenAIApiKey(key);
+    
+    return;
+  } catch (error) {
+    console.error('שגיאה בשמירת מפתח ה-API:', error);
+    // אם יש שגיאה בסופהבייס, לפחות המפתח נשמר מקומית
+  }
+}
 
 // פונקציות סיוע
 
@@ -73,10 +101,16 @@ async function classifySingleAlertWithAI(item: RSSItem, userLocation: string): P
   try {
     const fullText = `${item.title} ${item.description}`;
     
-    const OPENAI_API_KEY = getOpenAIApiKey();
+    // קבלת מפתח API - מנסה קודם מסופהבייס ואז מהאחסון המקומי
+    let apiKey = await getOpenAIApiKey();
     
-    if (!OPENAI_API_KEY) {
-      console.warn("No OpenAI API key found in localStorage, falling back to keyword method");
+    // אם אין מפתח בסופהבייס, ננסה לקבל מהאחסון המקומי הישן
+    if (!apiKey) {
+      apiKey = getOpenAIApiKeyFromLocal();
+    }
+    
+    if (!apiKey) {
+      console.warn("No OpenAI API key found, falling back to keyword method");
       return createAlertFromKeywords(item, userLocation);
     }
     
@@ -87,7 +121,7 @@ async function classifySingleAlertWithAI(item: RSSItem, userLocation: string): P
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`
+        "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: "gpt-3.5-turbo",
@@ -131,7 +165,7 @@ async function classifySingleAlertWithAI(item: RSSItem, userLocation: string): P
       isRelevant: isRelevant,
       source: extractSourceFromLink(item.link),
       link: item.link,
-      isSecurityEvent: isSecurityEvent // הוספת שדה לציון אירועי ביטחון
+      isSecurityEvent: isSecurityEvent
     };
   } catch (error) {
     console.error("Error classifying alert with AI:", error);
@@ -178,7 +212,7 @@ function createAlertFromKeywords(item: RSSItem, userLocation: string): Alert {
     isRelevant: isRelevant,
     source: extractSourceFromLink(item.link),
     link: item.link,
-    isSecurityEvent: isSecurityEvent // הוספת שדה לציון אירועי ביטחון
+    isSecurityEvent: isSecurityEvent
   };
 }
 
