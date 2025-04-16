@@ -1,73 +1,58 @@
-# Welcome to your Lovable project
 
-## Project info
+# גיאו-אלרט (Geo Alert Now)
 
-**URL**: https://lovable.dev/projects/e70dcdd3-7d44-4689-9688-f9564cd9068f
+אפליקציה המסננת התראות ביטחוניות על פי מיקום, המבוססת על פידי RSS.
 
-## How can I edit this code?
+## הקדמה
 
-There are several ways of editing your application.
+גיאו-אלרט היא אפליקציה המיועדת לסייע למשתמשים לקבל התראות ביטחוניות רלוונטיות בלבד, המבוססות על המיקום הגיאוגרפי שלהם.
+האפליקציה מושכת מידע מפידי RSS של אתרי חדשות, מסווגת כל פריט חדשותי, ומציגה למשתמש רק את ההתראות הרלוונטיות לאזור שלו.
 
-**Use Lovable**
+## פיצ'רים
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/e70dcdd3-7d44-4689-9688-f9564cd9068f) and start prompting.
+1. **משיכת התראות מ-RSS**: קבלת פידי RSS מאתרי חדשות ישראליים.
+2. **סיווג התראות**: זיהוי אם ההתראה היא ביטחונית וזיהוי המיקום המוזכר בה.
+3. **התאמת מיקום**: השוואה בין המיקום המוזכר בהתראה למיקום המשתמש.
+4. **ממשק משתמש**: תצוגה ברורה של ההתראות עם סימון להתראות רלוונטיות.
+5. **שינוי מיקום ידני**: אפשרות לבחור מיקום שונה מהמיקום הנוכחי.
+6. **השתקת התראות**: אפשרות להשתיק התראות לפרק זמן מוגדר.
+7. **היסטוריית התראות**: צפייה בהתראות קודמות.
 
-Changes made via Lovable will be committed automatically to this repo.
+## טכנולוגיות
 
-**Use your preferred IDE**
+- **Frontend**: React עם TypeScript
+- **UI**: Tailwind CSS עם shadcn/ui
+- **RTL Support**: תמיכה מלאה בעברית וכיוון RTL
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## דרכים לריצה והתקנה
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### פיתוח מקומי
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Clone the repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Navigate to the project directory
+cd geo-alert-now
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Install dependencies
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## פונקציונליות עתידית
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- **אינטגרציה עם מערכת פיקוד העורף**: קבלת התראות ישירות ממערכת פיקוד העורף.
+- **שימוש ב-API של מזג אוויר**: קבלת מידע על תנאי מזג אוויר.
+- **התראות Push**: שליחת התראות push למכשיר המשתמש.
+- **GPT Integration**: שיפור סיווג ההתראות באמצעות AI.
 
-**Use GitHub Codespaces**
+## מפתחים
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+פותח על ידי צוות גיאו-אלרט.
 
-## What technologies are used for this project?
+## רישיון
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/e70dcdd3-7d44-4689-9688-f9564cd9068f) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+כל הזכויות שמורות © גיאו-אלרט 2024.

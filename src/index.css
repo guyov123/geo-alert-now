@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* RTL Support for Hebrew */
+.rtl {
+  direction: rtl;
+}
+
+html, body {
+  overflow-x: hidden;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
