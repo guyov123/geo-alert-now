@@ -4,12 +4,18 @@ import { Header } from "@/components/Header";
 import { AlertList } from "@/components/AlertList";
 import { Alert, LocationData } from "@/types";
 import { fetchRssFeeds } from "@/services/rssService";
-import { classifyAlerts, classifyAlertsWithAI } from "@/services/alertService";
+import { 
+  classifyAlerts, 
+  classifyAlertsWithAI, 
+  hasOpenAIApiKey,
+  setOpenAIApiKey
+} from "@/services/alertService";
 import { getCurrentLocation, reverseGeocode } from "@/services/locationService";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Clock } from "lucide-react";
+import { Loader2, Clock, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { ApiKeyDialog } from "@/components/ApiKeyDialog";
 
 const Index = () => {
   const { toast } = useToast();
@@ -18,10 +24,15 @@ const Index = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [snoozeActive, setSnoozeActive] = useState<boolean>(false);
   const [snoozeEndTime, setSnoozeEndTime] = useState<Date | null>(null);
-  const [useAI, setUseAI] = useState<boolean>(!!import.meta.env.VITE_OPENAI_API_KEY);
-
+  const [useAI, setUseAI] = useState<boolean>(false);
+  const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState<boolean>(false);
+  
   // Initialize the app by getting user location and loading first alerts
   useEffect(() => {
+    // Check if API key is stored in localStorage
+    const hasApiKey = hasOpenAIApiKey();
+    setUseAI(hasApiKey);
+    
     const initApp = async () => {
       try {
         // Get user's location
@@ -90,9 +101,9 @@ const Index = () => {
     try {
       const rssItems = await fetchRssFeeds();
       
-      // Use AI classification if available, otherwise fall back to keyword method
+      // Use AI classification if available and enabled, otherwise fall back to keyword method
       let classifiedAlerts;
-      if (useAI) {
+      if (useAI && hasOpenAIApiKey()) {
         try {
           classifiedAlerts = await classifyAlertsWithAI(rssItems, userLocation);
           console.log("Used AI classification");
@@ -149,22 +160,32 @@ const Index = () => {
   };
 
   const toggleAIClassification = () => {
-    if (!useAI && !import.meta.env.VITE_OPENAI_API_KEY) {
+    if (!useAI) {
+      // Check if API key is already stored
+      if (hasOpenAIApiKey()) {
+        setUseAI(true);
+        toast({
+          title: "סיווג AI מופעל",
+          description: "עברנו לסיווג חכם המבוסס על AI"
+        });
+        refreshAlerts(location);
+      } else {
+        // Open dialog to enter API key
+        setApiKeyDialogOpen(true);
+      }
+    } else {
+      // Switch to keyword-based classification
+      setUseAI(false);
       toast({
-        title: "נדרש מפתח API של OpenAI",
-        description: "כדי להשתמש בסיווג AI, יש להגדיר את VITE_OPENAI_API_KEY",
-        variant: "destructive",
+        title: "סיווג מבוסס מילות מפתח מופעל",
+        description: "עברנו לסיווג פשוט המבוסס על מילות מפתח"
       });
-      return;
+      refreshAlerts(location);
     }
-    
-    setUseAI(!useAI);
-    toast({
-      title: useAI ? "סיווג מבוסס מילות מפתח מופעל" : "סיווג AI מופעל",
-      description: useAI ? 
-        "עברנו לסיווג פשוט המבוסס על מילות מפתח" : 
-        "עברנו לסיווג חכם המבוסס על AI"
-    });
+  };
+  
+  const handleApiKeySuccess = () => {
+    setUseAI(true);
     refreshAlerts(location);
   };
 
@@ -202,6 +223,18 @@ const Index = () => {
             <div className={`h-2 w-2 rounded-full ${useAI ? "bg-green-500" : "bg-gray-400"}`}></div>
           </Button>
           
+          {useAI && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setApiKeyDialogOpen(true)}
+              className="flex items-center gap-1 mx-2"
+            >
+              <Key className="h-4 w-4 text-geoalert-turquoise" />
+              <span>שינוי מפתח API</span>
+            </Button>
+          )}
+          
           <Link to="/history">
             <Button variant="outline" size="sm" className="flex items-center gap-1">
               <Clock className="h-4 w-4 text-geoalert-turquoise" />
@@ -234,6 +267,12 @@ const Index = () => {
         )}
         
         <AlertList alerts={alerts} />
+        
+        <ApiKeyDialog 
+          open={apiKeyDialogOpen} 
+          onOpenChange={setApiKeyDialogOpen} 
+          onSuccess={handleApiKeySuccess}
+        />
       </main>
       
       <footer className="mt-auto py-4 text-center text-sm text-gray-500 border-t border-gray-200 bg-white">

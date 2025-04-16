@@ -1,4 +1,3 @@
-
 import { Alert, RSSItem, LocationData } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
@@ -24,13 +23,30 @@ const LOCATION_KEYWORDS = {
   "שומרון": ["שומרון"]
 };
 
+// Function to securely store the API key in localStorage
+export function setOpenAIApiKey(apiKey: string) {
+  localStorage.setItem('openai_api_key', apiKey);
+  return true;
+}
+
+// Function to get the stored API key
+export function getOpenAIApiKey(): string | null {
+  return localStorage.getItem('openai_api_key');
+}
+
+// Function to check if API key is already set
+export function hasOpenAIApiKey(): boolean {
+  const key = getOpenAIApiKey();
+  return !!key && key.length > 20; // Basic validation that the key looks legitimate
+}
+
 export async function classifyAlertsWithAI(rssItems: RSSItem[], userLocation: string): Promise<Alert[]> {
   try {
     // Process items in small batches to avoid overwhelming the OpenAI API
     const batchSize = 5;
     const batches = [];
     
-    for (let i = 0; i < rssItems.length; i += batchSize) {
+    for (let i = 0; < rssItems.length; i += batchSize) {
       batches.push(rssItems.slice(i, i + batchSize));
     }
     
@@ -56,16 +72,17 @@ async function classifySingleAlertWithAI(item: RSSItem, userLocation: string): P
     // Combine title and description for analysis
     const fullText = `${item.title} ${item.description}`;
     
-    // Get API key from environment (in a real app) or use a temporary one for demo
-    const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+    // Get API key from localStorage instead of environment variables
+    const OPENAI_API_KEY = getOpenAIApiKey();
     
     if (!OPENAI_API_KEY) {
-      console.warn("No OpenAI API key found, falling back to keyword method");
+      console.warn("No OpenAI API key found in localStorage, falling back to keyword method");
       return createAlertFromKeywords(item, userLocation);
     }
     
     const prompt = buildPrompt(fullText);
     
+    console.log("Sending request to OpenAI API...");
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -80,12 +97,14 @@ async function classifySingleAlertWithAI(item: RSSItem, userLocation: string): P
     });
     
     if (!response.ok) {
-      console.error("OpenAI API error:", await response.text());
+      const errorText = await response.text();
+      console.error("OpenAI API error:", errorText);
       return createAlertFromKeywords(item, userLocation);
     }
     
     const data = await response.json();
     const aiResponse = data.choices[0].message.content;
+    console.log("Received response from OpenAI:", aiResponse);
     
     // Parse the JSON response
     let result;

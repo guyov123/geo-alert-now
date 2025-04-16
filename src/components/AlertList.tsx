@@ -3,7 +3,8 @@ import { Alert } from "@/types";
 import { AlertCard } from "./AlertCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Brain } from "lucide-react";
+import { hasOpenAIApiKey } from "@/services/alertService";
 
 interface AlertListProps {
   alerts: Alert[];
@@ -12,6 +13,7 @@ interface AlertListProps {
 export function AlertList({ alerts }: AlertListProps) {
   const [relevantCount, setRelevantCount] = useState(0);
   const [nearbyAlerts, setNearbyAlerts] = useState<Alert[]>([]);
+  const [usingAI, setUsingAI] = useState(false);
   
   useEffect(() => {
     setRelevantCount(alerts.filter(alert => alert.isRelevant).length);
@@ -22,6 +24,9 @@ export function AlertList({ alerts }: AlertListProps) {
       alert.location && alert.location !== "לא ידוע"
     );
     setNearbyAlerts(locationKnown);
+    
+    // Check if AI classification is being used
+    setUsingAI(hasOpenAIApiKey());
   }, [alerts]);
 
   // Split alerts by relevance for different tabs
@@ -51,6 +56,14 @@ export function AlertList({ alerts }: AlertListProps) {
           <TabsTrigger value="all" className="flex-1">כל ההתראות</TabsTrigger>
           <TabsTrigger value="nearby" className="flex-1">לפי מיקום</TabsTrigger>
         </TabsList>
+        
+        {usingAI && (
+          <div className="flex items-center justify-end mt-2 text-xs text-gray-500">
+            <Brain className="h-3 w-3 mr-1" />
+            <span>סיווג באמצעות AI</span>
+          </div>
+        )}
+        
         <TabsContent value="relevant" className="mt-4 space-y-4">
           {relevantAlerts.length > 0 ? (
             relevantAlerts.map(alert => (
