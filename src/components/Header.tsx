@@ -21,7 +21,7 @@ export function Header({ location, onLocationChange, onSnoozeChange, snoozeActiv
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Bell className="h-6 w-6 text-geoalert-turquoise" />
-          <h1 className="text-xl font-semibold text-gray-900">גיאו-אלרט</h1>
+          <h1 className="text-xl font-semibold text-gray-900">SafeSpot</h1>
         </div>
         
         <div className="flex items-center space-x-2">
