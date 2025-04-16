@@ -1,3 +1,4 @@
+
 import { RSSItem } from "@/types";
 import * as xml2js from "xml2js";
 
@@ -36,6 +37,8 @@ export async function fetchRssFeeds(): Promise<RSSItem[]> {
       return getMockRssItems();
     }
     
+    console.log("Successfully fetched RSS items:", allItems.length);
+    
     // Take the 15 most recent items
     return allItems.slice(0, 15);
   } catch (error) {
@@ -48,7 +51,13 @@ export async function fetchRssFeeds(): Promise<RSSItem[]> {
 async function fetchRssFeed(feedUrl: string): Promise<RSSItem[]> {
   try {
     console.log(`Fetching RSS feed: ${feedUrl}`);
-    const response = await fetch(`${RSS_PROXY_API}${encodeURIComponent(feedUrl)}`);
+    const proxyUrl = `${RSS_PROXY_API}${encodeURIComponent(feedUrl)}`;
+    const response = await fetch(proxyUrl, {
+      headers: {
+        'Accept': 'application/xml, text/xml, */*',
+        'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7'
+      }
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to fetch feed: ${response.status} ${response.statusText}`);
@@ -65,56 +74,77 @@ async function fetchRssFeed(feedUrl: string): Promise<RSSItem[]> {
 // Function to parse XML data from RSS feeds
 async function parseRssFeed(xmlData: string, feedUrl: string): Promise<RSSItem[]> {
   try {
+    // Create parser without using EventEmitter to avoid removeAllListeners error
     const parser = new xml2js.Parser({
-      explicitArray: false
+      explicitArray: false,
+      emptyTag: null
     });
-    const result = await parser.parseStringPromise(xmlData);
     
-    // Different RSS feeds have different structures
-    const channel = result.rss?.channel;
-    if (!channel) {
-      console.error(`Invalid RSS format for ${feedUrl}`);
-      return [];
-    }
-    
-    // Handle array or single item
-    let items = channel.item;
-    if (!items) {
-      return [];
-    }
-    
-    // Make sure items is an array
-    if (!Array.isArray(items)) {
-      items = [items];
-    }
-    
-    return items.map((item: any) => {
-      // Get the domain as source
-      const source = new URL(feedUrl).hostname.replace('www.', '');
-      
-      // Normalize date format (feeds use different formats)
-      let pubDate = item.pubDate || item.date || new Date().toISOString();
-      
-      // Try to parse the date string into a standard format
-      try {
-        const date = new Date(pubDate);
-        if (!isNaN(date.getTime())) {
-          pubDate = date.toISOString();
+    // Manual parsing to avoid removeAllListeners error
+    return new Promise((resolve, reject) => {
+      parser.parseString(xmlData, (err, result) => {
+        if (err) {
+          console.error(`XML parsing error for ${feedUrl}:`, err);
+          resolve([]);
+          return;
         }
-      } catch (e) {
-        // If date parsing fails, use current time
-        pubDate = new Date().toISOString();
-      }
-      
-      return {
-        title: item.title?.trim() || "ללא כותרת",
-        description: 
-          (item.description?.trim() || item.summary?.trim() || "אין פרטים נוספים")
-            .replace(/<\/?[^>]+(>|$)/g, ""), // Remove HTML tags
-        link: item.link || feedUrl,
-        pubDate: pubDate,
-        guid: item.guid?._?.trim() || item.guid?.trim() || item.id?.trim() || Math.random().toString(36).substr(2, 9)
-      };
+        
+        try {
+          // Different RSS feeds have different structures
+          const channel = result?.rss?.channel;
+          if (!channel) {
+            console.error(`Invalid RSS format for ${feedUrl}`);
+            resolve([]);
+            return;
+          }
+          
+          // Handle array or single item
+          let items = channel.item;
+          if (!items) {
+            resolve([]);
+            return;
+          }
+          
+          // Make sure items is an array
+          if (!Array.isArray(items)) {
+            items = [items];
+          }
+          
+          const parsedItems = items.map((item: any) => {
+            // Get the domain as source
+            const source = new URL(feedUrl).hostname.replace('www.', '');
+            
+            // Normalize date format (feeds use different formats)
+            let pubDate = item.pubDate || item.date || new Date().toISOString();
+            
+            // Try to parse the date string into a standard format
+            try {
+              const date = new Date(pubDate);
+              if (!isNaN(date.getTime())) {
+                pubDate = date.toISOString();
+              }
+            } catch (e) {
+              // If date parsing fails, use current time
+              pubDate = new Date().toISOString();
+            }
+            
+            return {
+              title: item.title?.trim() || "ללא כותרת",
+              description: 
+                (item.description?.trim() || item.summary?.trim() || "אין פרטים נוספים")
+                  .replace(/<\/?[^>]+(>|$)/g, ""), // Remove HTML tags
+              link: item.link || feedUrl,
+              pubDate: pubDate,
+              guid: item.guid?._?.trim() || item.guid?.trim() || item.id?.trim() || Math.random().toString(36).substr(2, 9)
+            };
+          });
+          
+          resolve(parsedItems);
+        } catch (error) {
+          console.error(`Error processing RSS feed ${feedUrl}:`, error);
+          resolve([]);
+        }
+      });
     });
   } catch (error) {
     console.error(`Error parsing RSS feed ${feedUrl}:`, error);

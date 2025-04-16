@@ -3,6 +3,7 @@ import { Alert } from "@/types";
 import { AlertCard } from "./AlertCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 interface AlertListProps {
   alerts: Alert[];
@@ -18,6 +19,15 @@ export function AlertList({ alerts }: AlertListProps) {
   // Split alerts by relevance for different tabs
   const relevantAlerts = alerts.filter(alert => alert.isRelevant);
   const otherAlerts = alerts.filter(alert => !alert.isRelevant);
+  
+  if (alerts.length === 0) {
+    return (
+      <div className="w-full text-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-geoalert-turquoise mx-auto mb-4" />
+        <p className="text-gray-600" dir="rtl">טוען התראות...</p>
+      </div>
+    );
+  }
   
   return (
     <div className="w-full">
