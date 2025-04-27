@@ -56,8 +56,9 @@ export async function getOpenAIApiKeyFromSupabase(): Promise<string | null> {
       return null;
     }
     
-    const { data, error } = await supabase
-      .from('user_settings')
+    // Using type assertion to work around TypeScript limitations
+    const { data, error } = await (supabase
+      .from('user_settings') as any)
       .select('openai_api_key')
       .eq('user_id', user.id)
       .maybeSingle();
@@ -80,8 +81,8 @@ export async function saveOpenAIApiKey(key: string): Promise<void> {
     }
     
     // First check if a record already exists
-    const { data, error: selectError } = await supabase
-      .from('user_settings')
+    const { data, error: selectError } = await (supabase
+      .from('user_settings') as any)
       .select('id')
       .eq('user_id', user.id)
       .maybeSingle();
@@ -90,8 +91,8 @@ export async function saveOpenAIApiKey(key: string): Promise<void> {
     
     if (data) {
       // Update existing record
-      const { error } = await supabase
-        .from('user_settings')
+      const { error } = await (supabase
+        .from('user_settings') as any)
         .update({ 
           openai_api_key: key,
           updated_at: new Date().toISOString()
@@ -101,8 +102,8 @@ export async function saveOpenAIApiKey(key: string): Promise<void> {
       if (error) throw error;
     } else {
       // Insert new record
-      const { error } = await supabase
-        .from('user_settings')
+      const { error } = await (supabase
+        .from('user_settings') as any)
         .insert({
           user_id: user.id,
           openai_api_key: key
