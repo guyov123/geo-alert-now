@@ -1,5 +1,5 @@
 
-import { Home, Bell, User, Search } from "lucide-react";
+import { Home, History, User, Search } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -31,14 +31,14 @@ export function BottomNav() {
       </Link>
       
       <Link 
-        to="/notifications" 
+        to="/history" 
         className={cn(
           "flex flex-col items-center text-sm",
-          location.pathname === "/notifications" ? "text-geoalert-turquoise" : "text-gray-500"
+          location.pathname === "/history" ? "text-geoalert-turquoise" : "text-gray-500"
         )}
       >
-        <Bell className="h-5 w-5" />
-        <span className="text-xs mt-1">התראות</span>
+        <History className="h-5 w-5" />
+        <span className="text-xs mt-1">היסטוריה</span>
       </Link>
       
       <Link 
