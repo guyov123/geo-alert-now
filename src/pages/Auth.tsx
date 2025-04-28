@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -13,6 +14,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [isLogin, setIsLogin] = useState(true);
   const { toast } = useToast();
 
   // Check if user is already logged in
@@ -68,9 +70,24 @@ export default function Auth() {
     setLoading(true);
     
     try {
+      // Make sure to provide the required email and password
+      if (!email || !password) {
+        throw new Error("אנא הזן אימייל וסיסמה");
+      }
+
+      if (password.length < 6) {
+        throw new Error("הסיסמה חייבת להכיל לפחות 6 תווים");
+      }
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: {
+            email: email
+          }
+        }
       });
 
       if (error) throw error;
@@ -79,11 +96,11 @@ export default function Auth() {
         title: "נרשמת בהצלחה",
         description: "בדוק את תיבת האימייל שלך להשלמת ההרשמה",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error signing up:", error);
       toast({
         title: "שגיאה בהרשמה",
-        description: "אנא בדוק את הפרטים ונסה שוב",
+        description: error.message || "אנא בדוק את הפרטים ונסה שוב",
         variant: "destructive",
       });
     } finally {
@@ -95,43 +112,53 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-geoalert-gray p-4">
       <div className="w-full max-w-md space-y-8 bg-white p-6 rounded-lg shadow-md">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900">כניסה למערכת</h2>
-          <p className="mt-2 text-gray-600">התחבר או הירשם כדי להתחיל</p>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {isLogin ? "כניסה למערכת" : "הרשמה למערכת"}
+          </h2>
+          <p className="mt-2 text-gray-600">
+            {isLogin ? "התחבר כדי להתחיל" : "צור חשבון חדש"}
+          </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+        <form className="mt-8 space-y-6" onSubmit={isLogin ? handleLogin : handleSignUp}>
           <div className="space-y-4">
-            <div className="relative">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="block text-right">אימייל</Label>
               <Input
+                id="email"
                 type="email"
-                placeholder="אימייל"
+                placeholder="your.email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="text-right"
                 required
               />
             </div>
-            <div className="relative">
-              <Button
-                type="button"
-                variant="ghost"
-                className="absolute left-2 top-2 h-6 w-6 p-0"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4 text-gray-400" />
-                ) : (
-                  <Eye className="h-4 w-4 text-gray-400" />
-                )}
-              </Button>
-              <Input
-                type={showPassword ? "text" : "password"}
-                placeholder="סיסמה"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="text-right"
-                required
-              />
+            <div className="space-y-2">
+              <Label htmlFor="password" className="block text-right">סיסמה</Label>
+              <div className="relative">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="absolute left-2 top-2 h-6 w-6 p-0"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
+                </Button>
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="סיסמה (לפחות 6 תווים)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="text-right"
+                  required
+                />
+              </div>
             </div>
           </div>
 
@@ -141,16 +168,16 @@ export default function Auth() {
               className="w-full"
               disabled={loading}
             >
-              התחברות
+              {isLogin ? "התחברות" : "הרשמה"}
             </Button>
             <Button
               type="button"
               variant="outline"
               className="w-full"
-              onClick={handleSignUp}
+              onClick={() => setIsLogin(!isLogin)}
               disabled={loading}
             >
-              הרשמה
+              {isLogin ? "עבור להרשמה" : "עבור להתחברות"}
             </Button>
           </div>
         </form>
