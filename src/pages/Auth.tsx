@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +16,7 @@ export default function Auth() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [isLogin, setIsLogin] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -23,7 +25,21 @@ export default function Auth() {
     };
     
     checkAuth();
-  }, []);
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session ? "User authenticated" : "No session");
+      setAuthenticated(!!session);
+      
+      if (session) {
+        // When authentication succeeds, redirect to home page
+        navigate("/");
+      }
+    });
+    
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [navigate]);
 
   if (authenticated === null) {
     return null;
@@ -38,17 +54,21 @@ export default function Auth() {
     setLoading(true);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("Attempting to login with:", email);
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
       
+      console.log("Login successful:", data);
+      
       toast({
         title: "התחברת בהצלחה",
         description: "ברוכים הבאים חזרה!",
       });
+      
     } catch (error) {
       console.error("Error logging in:", error);
       toast({
@@ -74,10 +94,13 @@ export default function Auth() {
         throw new Error("הסיסמה חייבת להכיל לפחות 6 תווים");
       }
       
-      const { error } = await supabase.auth.signUp({
+      console.log("Attempting to sign up with:", email);
+      const { error, data } = await supabase.auth.signUp({
         email,
         password,
       });
+
+      console.log("Signup response:", data);
 
       if (error) throw error;
       
@@ -157,7 +180,7 @@ export default function Auth() {
               className="w-full"
               disabled={loading}
             >
-              {isLogin ? "התחברות" : "הרשמה"}
+              {loading ? "מתחבר..." : (isLogin ? "התחברות" : "הרשמה")}
             </Button>
             <Button
               type="button"
