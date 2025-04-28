@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Key, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -9,8 +8,7 @@ import { AlertList } from "@/components/AlertList";
 import { ApiKeyDialog } from "@/components/ApiKeyDialog";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { SnoozeAlert } from "@/components/SnoozeAlert";
-import { AppFooter } from "@/components/AppFooter";
-import { ControlsSection } from "@/components/ControlsSection";
+import { BottomNav } from "@/components/BottomNav";
 import { useAlerts } from "@/hooks/use-alerts";
 import { useLocation } from "@/hooks/use-location";
 import { useSnooze } from "@/hooks/use-snooze";
@@ -76,7 +74,7 @@ const Index = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col bg-geoalert-gray">
+      <div className="min-h-screen flex flex-col bg-geoalert-gray pb-16">
         <Header 
           location={location} 
           onLocationChange={handleLocationChange}
@@ -91,13 +89,13 @@ const Index = () => {
           </div>
         </main>
         
-        <AppFooter />
+        <BottomNav />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-geoalert-gray">
+    <div className="min-h-screen flex flex-col bg-geoalert-gray pb-16">
       <Header 
         location={location} 
         onLocationChange={handleLocationChange}
@@ -106,35 +104,16 @@ const Index = () => {
       />
       
       <main className="flex-1 container mx-auto px-4 py-6">
-        <div className="flex justify-between mb-4">
+        <div className="flex justify-end mb-4">
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={toggleAIClassification}
+            onClick={() => setApiKeyDialogOpen(true)}
             className="flex items-center gap-1"
           >
-            <span>{useAI ? "סיווג AI" : "סיווג רגיל"}</span>
-            <div className={`h-2 w-2 rounded-full ${useAI ? "bg-green-500" : "bg-gray-400"}`}></div>
+            <Key className="h-4 w-4 text-geoalert-turquoise" />
+            <span>API הגדרות</span>
           </Button>
-          
-          {useAI && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setApiKeyDialogOpen(true)}
-              className="flex items-center gap-1 mx-2"
-            >
-              <Key className="h-4 w-4 text-geoalert-turquoise" />
-              <span>שינוי מפתח API</span>
-            </Button>
-          )}
-          
-          <Link to="/history">
-            <Button variant="outline" size="sm" className="flex items-center gap-1">
-              <Clock className="h-4 w-4 text-geoalert-turquoise" />
-              <span>היסטוריה</span>
-            </Button>
-          </Link>
         </div>
 
         <SnoozeAlert 
@@ -152,7 +131,7 @@ const Index = () => {
         />
       </main>
       
-      <AppFooter />
+      <BottomNav />
     </div>
   );
 };
