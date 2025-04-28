@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Key, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -115,8 +116,6 @@ const Index = () => {
           </Button>
         </div>
 
-        <CalmChat />
-
         <SnoozeAlert 
           snoozeActive={snoozeActive} 
           snoozeEndTime={snoozeEndTime}
@@ -130,6 +129,8 @@ const Index = () => {
           onOpenChange={setApiKeyDialogOpen} 
           onSuccess={handleApiKeySuccess}
         />
+
+        <CalmChat />
       </main>
       
       <BottomNav />
