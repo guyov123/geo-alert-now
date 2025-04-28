@@ -5,6 +5,13 @@ import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
 import { Wind } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface Message {
   id: string;
@@ -18,6 +25,7 @@ export function CalmChat() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const [isOpen, setIsOpen] = useState(false);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -63,66 +71,80 @@ export function CalmChat() {
   };
 
   return (
-    <div className="flex flex-col h-[600px] max-w-md mx-auto bg-white rounded-lg shadow-lg">
-      <div className="p-4 border-b flex items-center gap-2 bg-geoalert-turquoise text-white">
-        <Wind className="h-5 w-5" />
-        <h2 className="text-lg font-medium">צ'אט מרגיע</h2>
-      </div>
-
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[80%] rounded-lg p-3 ${
-                  message.isUser
-                    ? 'bg-geoalert-turquoise text-white rounded-br-none'
-                    : 'bg-gray-100 text-gray-800 rounded-bl-none'
-                }`}
-                dir="rtl"
-              >
-                {message.content}
-              </div>
-            </div>
-          ))}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-gray-100 rounded-lg p-3 flex items-center gap-2">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]" />
-              </div>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-
-      <div className="p-4 border-t">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            sendMessage();
-          }}
-          className="flex gap-2"
-        >
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="כתוב את תחושותיך..."
-            className="flex-1"
-            dir="rtl"
-          />
-          <Button 
-            type="submit" 
-            disabled={isLoading || !input.trim()}
+    <div className="fixed bottom-20 right-4 z-50">
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Button
+            className="rounded-full p-4 h-14 w-14 bg-geoalert-turquoise hover:bg-geoalert-turquoise/90"
+            size="icon"
           >
-            שלח
+            <Wind className="h-6 w-6" />
           </Button>
-        </form>
-      </div>
+        </DialogTrigger>
+        <DialogContent className="h-[600px] max-w-md p-0">
+          <DialogHeader className="p-4 border-b bg-geoalert-turquoise">
+            <DialogTitle className="text-white flex items-center gap-2 text-right">
+              <Wind className="h-5 w-5" />
+              צ'אט מרגיע
+            </DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 p-4 h-[calc(100%-8rem)]">
+            <div className="space-y-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-lg p-3 ${
+                      message.isUser
+                        ? 'bg-geoalert-turquoise text-white rounded-br-none'
+                        : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                    }`}
+                    dir="rtl"
+                  >
+                    {message.content}
+                  </div>
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-100 rounded-lg p-3 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]" />
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+
+          <div className="p-4 border-t mt-auto">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendMessage();
+              }}
+              className="flex gap-2"
+            >
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="כתוב את תחושותיך..."
+                className="flex-1"
+                dir="rtl"
+              />
+              <Button 
+                type="submit" 
+                disabled={isLoading || !input.trim()}
+              >
+                שלח
+              </Button>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -59,7 +59,6 @@ const Index = () => {
   };
   
   const handleApiKeySuccess = async () => {
-    // בדיקת מפתח API מחדש אחרי שמירה מוצלחת
     await checkForApiKey();
     refreshAlerts(location);
   };
@@ -68,7 +67,6 @@ const Index = () => {
     handleSnoozeChange(0, location);
   };
 
-  // בדיקה אם יש שגיאה במהלך טעינת הנתונים
   if (loading) {
     return <LoadingSpinner message="טוען התראות..." />;
   }
@@ -117,9 +115,7 @@ const Index = () => {
           </Button>
         </div>
 
-        <div className="mb-8">
-          <CalmChat />
-        </div>
+        <CalmChat />
 
         <SnoozeAlert 
           snoozeActive={snoozeActive} 
