@@ -7,10 +7,18 @@ import { supabase } from "@/integrations/supabase/client";
 
 // פונקציה לנרמול שמות מיקומים
 const normalizeLocationName = (location: string): string => {
-  // טיפול במקרים מיוחדים
-  if (location.includes('תל אביב') || location.includes('ת"א')) {
+  // בדיקה אם המחרוזת ריקה
+  if (!location) return "לא ידוע";
+  
+  // המרה לאותיות קטנות לצורך השוואה טובה יותר
+  const locationLower = location.trim().toLowerCase();
+  
+  // טיפול במקרים מיוחדים של תל אביב
+  if (locationLower.includes('תל אביב') || locationLower.includes('ת"א') || locationLower.includes('תל-אביב')) {
     return 'תל אביב-יפו'; // נרמול לשם הרשמי של העיר
   }
+  
+  // החזרת המחרוזת המקורית אם לא נמצאה התאמה מיוחדת
   return location;
 };
 

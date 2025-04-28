@@ -48,6 +48,13 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         console.log(`Keyword classified ${classifiedAlerts.length} security events`);
       }
       
+      // הדפסה לדיבאג של התראות רלוונטיות
+      const relevantAlerts = classifiedAlerts.filter(alert => alert.isRelevant);
+      console.log(`Found ${relevantAlerts.length} relevant alerts for location: ${userLocation}`);
+      relevantAlerts.forEach(alert => {
+        console.log(`Relevant alert: "${alert.title}" | Location: ${alert.location}`);
+      });
+      
       // שמירת ההתראות להיסטוריה
       saveAlertsToHistory(classifiedAlerts);
       
@@ -80,6 +87,7 @@ export function useAlerts(location: string, snoozeActive: boolean) {
 
   // טעינת התראות בטעינת הדף
   useEffect(() => {
+    console.log(`Location changed: ${location}, refreshing alerts...`);
     refreshAlerts(location);
   }, [location]);
 

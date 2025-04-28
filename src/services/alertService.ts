@@ -71,6 +71,20 @@ export async function setOpenAIApiKey(key: string): Promise<void> {
   }
 }
 
+// פונקציית עזר לנירמול שמות מיקומים
+function normalizeLocation(location: string): string {
+  if (!location) return "";
+  
+  const normalized = location.trim().toLowerCase();
+  
+  // נרמול תל אביב ותל אביב-יפו
+  if (normalized.includes('תל אביב') || normalized.includes('ת"א') || normalized.includes('תל-אביב')) {
+    return 'תל אביב-יפו';
+  }
+  
+  return normalized;
+}
+
 // פונקציות סיוע
 
 function buildPrompt(text: string): string {
@@ -94,35 +108,27 @@ function isLocationRelevant(location: string, userLocation: string): boolean {
   if (!location || !userLocation) return false;
   
   // נרמול המחרוזות להשוואה טובה יותר
-  const normalizedLocation = location.trim().toLowerCase();
-  const normalizedUserLocation = userLocation.trim().toLowerCase();
+  const normalizedLocation = normalizeLocation(location);
+  const normalizedUserLocation = normalizeLocation(userLocation);
   
-  // בדיקה פשוטה - האם המיקום שווה למיקום המשתמש
+  console.log(`Comparing normalized locations: "${normalizedLocation}" with user location "${normalizedUserLocation}"`);
+  
+  // בדיקה ישירה לאחר נרמול
   if (normalizedLocation === normalizedUserLocation) {
-    return true;
-  }
-  
-  // בדיקת וריאציות של שמות ערים
-  // תל אביב ותל אביב-יפו
-  if ((normalizedLocation.includes('תל אביב') && normalizedUserLocation.includes('תל אביב')) ||
-      (normalizedLocation.includes('ת"א') && (normalizedUserLocation.includes('תל אביב') || normalizedUserLocation.includes('ת"א')))) {
-    return true;
-  }
-  
-  // בדיקת הכלה - אם אחד מהם מכיל את השני
-  if (normalizedLocation.includes(normalizedUserLocation) || normalizedUserLocation.includes(normalizedLocation)) {
+    console.log("Direct match found after normalization");
     return true;
   }
   
   // רשימת מיקומים שייחשבו כרלוונטיים לכל המשתמשים
   const nationalLocations = ["ישראל", "כל הארץ", "המרכז", "הדרום", "הצפון", "גוש דן"];
   if (nationalLocations.some(loc => normalizedLocation.includes(loc.toLowerCase()))) {
+    console.log("National location match found");
     return true;
   }
   
   // רשימת מיקומים קרובים - למשל אזורים שקרובים לתל אביב
   const locationMap = {
-    'תל אביב': ['רמת גן', 'גבעתיים', 'בני ברק', 'חולון', 'בת ים', 'רמת השרון', 'הרצליה'],
+    'תל אביב-יפו': ['רמת גן', 'גבעתיים', 'בני ברק', 'חולון', 'בת ים', 'רמת השרון', 'הרצליה'],
     'ירושלים': ['מעלה אדומים', 'גבעת זאב', 'בית שמש'],
     'חיפה': ['קריות', 'טירת הכרמל', 'נשר'],
     'באר שבע': ['אופקים', 'נתיבות', 'רהט', 'דימונה']
@@ -132,11 +138,19 @@ function isLocationRelevant(location: string, userLocation: string): boolean {
   for (const [area, nearby] of Object.entries(locationMap)) {
     if (normalizedUserLocation.includes(area)) {
       if (nearby.some(place => normalizedLocation.includes(place.toLowerCase()))) {
+        console.log(`Nearby location match found: ${area} includes ${normalizedLocation}`);
         return true;
       }
     }
   }
   
+  // בדיקת הכלה - אם אחד מהם מכיל את השני
+  if (normalizedLocation.includes(normalizedUserLocation) || normalizedUserLocation.includes(normalizedLocation)) {
+    console.log("Substring match found");
+    return true;
+  }
+  
+  console.log("No location match found");
   return false;
 }
 

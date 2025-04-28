@@ -16,7 +16,9 @@ export function AlertList({ alerts }: AlertListProps) {
   const [usingAI, setUsingAI] = useState(false);
   
   useEffect(() => {
-    setRelevantCount(alerts.filter(alert => alert.isRelevant).length);
+    const relevantAlerts = alerts.filter(alert => alert.isRelevant);
+    setRelevantCount(relevantAlerts.length);
+    console.log(`AlertList found ${relevantAlerts.length} relevant alerts out of ${alerts.length} total alerts`);
     
     // For the "nearby" tab, include alerts that have known locations
     // but might not have been marked as directly relevant to the user's city
