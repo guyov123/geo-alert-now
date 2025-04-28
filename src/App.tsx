@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import History from "./pages/History";
+import RssSources from "./pages/RssSources";
 import { AuthRoute } from "./components/AuthRoute";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Route element={<AuthRoute />}>
             <Route path="/" element={<Index />} />
             <Route path="/history" element={<History />} />
+            <Route path="/rss" element={<RssSources />} />
           </Route>
           
           {/* נתיב עבור דף שגיאה 404 */}

@@ -1,15 +1,31 @@
+
 import { RSSItem } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
 
 // Real RSS feed proxy API to avoid CORS issues
 const RSS_PROXY_API = "https://api.allorigins.win/raw?url=";
 
-// Use only Ynet RSS feed which we know is working
-const RSS_FEEDS = [
-  "https://www.ynet.co.il/Integration/StoryRss2.xml"
-];
-
 export async function fetchRssFeeds(): Promise<RSSItem[]> {
   try {
+    // Get user's active RSS sources
+    const { data: sources, error: sourcesError } = await supabase
+      .from('rss_sources')
+      .select('url')
+      .eq('is_active', true);
+    
+    if (sourcesError) {
+      console.error("Error fetching RSS sources:", sourcesError);
+      throw sourcesError;
+    }
+    
+    // Extract URLs
+    const RSS_FEEDS = sources.map(source => source.url);
+    
+    if (RSS_FEEDS.length === 0) {
+      console.warn("No active RSS feeds found, using mock data");
+      return getMockRssItems();
+    }
+    
     // Fetch from all RSS feeds in parallel
     const feedPromises = RSS_FEEDS.map(feedUrl => fetchRssFeed(feedUrl));
     const feedResults = await Promise.allSettled(feedPromises);
