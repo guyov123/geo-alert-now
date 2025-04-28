@@ -7,10 +7,11 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MapPin, Loader2 } from "lucide-react";
 import { getCurrentLocation, reverseGeocode } from "@/services/locationService";
 import { useToast } from "@/components/ui/use-toast";
@@ -32,14 +33,12 @@ export function LocationOverrideDialog({
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // כאשר הדיאלוג נפתח, עדכן את השדה עם המיקום הנוכחי
-  // זה טוב עבור פתיחות חוזרות של הדיאלוג
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen && currentLocation !== "טוען..." && currentLocation !== "לא ידוע") {
+  // Update the field with the current location whenever the dialog opens or currentLocation changes
+  useEffect(() => {
+    if (currentLocation !== "טוען..." && currentLocation !== "לא ידוע") {
       setLocation(currentLocation);
     }
-    onOpenChange(isOpen);
-  };
+  }, [currentLocation, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,10 +84,13 @@ export function LocationOverrideDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" dir="rtl">
         <DialogHeader>
           <DialogTitle className="text-right">עדכון מיקום</DialogTitle>
+          <DialogDescription className="text-right">
+            הזן את המיקום שלך או השתמש במיקום הנוכחי
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">

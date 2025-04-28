@@ -7,6 +7,7 @@ export async function updateUserLocation(location: string) {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
+      console.log("No authenticated user found when updating location");
       throw new Error("User not authenticated");
     }
     
@@ -36,7 +37,7 @@ export async function getUserLocation(): Promise<string> {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      console.log("No authenticated user found, returning default location");
+      console.log("No authenticated user found when getting location");
       return "לא ידוע";
     }
     

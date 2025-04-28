@@ -21,12 +21,25 @@ export function useLocation() {
     
     try {
       setIsLoading(true);
-      const updatedLocation = await updateUserLocation(newLocation);
-      setLocation(updatedLocation);
-      toast({
-        title: "המיקום עודכן",
-        description: `המיקום שלך עודכן ל${updatedLocation}`,
-      });
+      
+      // Try to update the location in Supabase
+      try {
+        await updateUserLocation(newLocation);
+        toast({
+          title: "המיקום עודכן",
+          description: `המיקום שלך עודכן ל${newLocation}`,
+        });
+      } catch (error) {
+        console.log("Error updating location in Supabase:", error);
+        // If there's an authentication error, just update local state
+        toast({
+          title: "המיקום עודכן מקומית",
+          description: "המיקום עודכן באופן מקומי בלבד (לא נשמר בחשבון)"
+        });
+      }
+      
+      // Update local state regardless of Supabase success
+      setLocation(newLocation);
     } catch (error) {
       console.error("Error in handleLocationChange:", error);
       toast({
@@ -44,7 +57,14 @@ export function useLocation() {
       try {
         setIsLoading(true);
         // First try to get location from Supabase
-        const savedLocation = await getUserLocation();
+        let savedLocation;
+        
+        try {
+          savedLocation = await getUserLocation();
+        } catch (error) {
+          console.log("Error fetching location from Supabase:", error);
+          savedLocation = "לא ידוע";
+        }
         
         if (savedLocation !== "לא ידוע") {
           setLocation(savedLocation);
@@ -56,8 +76,14 @@ export function useLocation() {
         const userLocation = await getCurrentLocation();
         const cityName = await reverseGeocode(userLocation.latitude, userLocation.longitude);
         
-        // Update location in Supabase
-        await updateUserLocation(cityName);
+        // Try to update location in Supabase
+        try {
+          await updateUserLocation(cityName);
+        } catch (error) {
+          console.log("Error saving initial location to Supabase:", error);
+          // Continue without saving to Supabase
+        }
+        
         setLocation(cityName);
       } catch (error) {
         console.error("Error getting location:", error);
