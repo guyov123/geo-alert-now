@@ -48,9 +48,12 @@ export function CalmChat() {
         body: JSON.stringify({ message: input.trim() })
       });
 
-      if (!response.ok) throw new Error("Failed to get response");
-
       const data = await response.json();
+      
+      if (!response.ok) {
+        // החזרת שגיאה מהשרת
+        throw new Error(data.error || "שגיאת שרת לא ידועה");
+      }
       
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
@@ -60,9 +63,19 @@ export function CalmChat() {
       }]);
     } catch (error) {
       console.error("Chat error:", error);
+      
+      // הוספת הודעת שגיאה לצ'אט במקום טוסט
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        content: "מצטער, נתקלתי בבעיה בתקשורת עם המערכת. ייתכן שחרגת ממכסת השימוש ב-API. אנא נסה שוב מאוחר יותר.",
+        isUser: false,
+        timestamp: new Date()
+      }]);
+      
+      // עדיין מציגים טוסט אבל עם מידע יותר ספציפי
       toast({
         title: "שגיאה בשליחת ההודעה",
-        description: "אנא נסה שוב מאוחר יותר",
+        description: "ייתכן שחרגת ממכסת השימוש ב-OpenAI API או שיש תקלה זמנית",
         variant: "destructive"
       });
     } finally {
@@ -91,6 +104,12 @@ export function CalmChat() {
 
           <ScrollArea className="flex-1 p-4 h-[calc(100%-8rem)]">
             <div className="space-y-4">
+              {messages.length === 0 && (
+                <div className="text-center text-gray-500 py-4">
+                  <p>שלום! אני כאן כדי לעזור לך להירגע ולהתמודד עם מצבי לחץ.</p>
+                  <p>איך אני יכול לעזור לך היום?</p>
+                </div>
+              )}
               {messages.map((message) => (
                 <div
                   key={message.id}
