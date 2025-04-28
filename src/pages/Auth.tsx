@@ -5,17 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [session, setSession] = useState(() => supabase.auth.getSession());
   const { toast } = useToast();
 
-  // If user is logged in, redirect to home page
+  // Check if user is already logged in
+  const session = supabase.auth.getSession();
   if (session) {
     return <Navigate to="/" replace />;
   }
@@ -87,18 +87,16 @@ export default function Auth() {
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           <div className="space-y-4">
             <div className="relative">
-              <Mail className="absolute right-3 top-3 h-5 w-5 text-gray-400" />
               <Input
                 type="email"
                 placeholder="אימייל"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="text-right pr-10"
+                className="text-right"
                 required
               />
             </div>
             <div className="relative">
-              <Lock className="absolute right-3 top-3 h-5 w-5 text-gray-400" />
               <Button
                 type="button"
                 variant="ghost"
@@ -116,7 +114,7 @@ export default function Auth() {
                 placeholder="סיסמה"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="text-right pr-10"
+                className="text-right"
                 required
               />
             </div>
