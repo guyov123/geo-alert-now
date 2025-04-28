@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { MapPin, Loader2 } from "lucide-react";
-import { getCurrentLocation } from "@/services/locationService";
+import { getCurrentLocation, reverseGeocode } from "@/services/locationService";
 import { useToast } from "@/components/ui/use-toast";
 
 interface LocationOverrideDialogProps {
@@ -32,11 +32,26 @@ export function LocationOverrideDialog({
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  // כאשר הדיאלוג נפתח, עדכן את השדה עם המיקום הנוכחי
+  // זה טוב עבור פתיחות חוזרות של הדיאלוג
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen && currentLocation !== "טוען..." && currentLocation !== "לא ידוע") {
+      setLocation(currentLocation);
+    }
+    onOpenChange(isOpen);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (location.trim()) {
       onLocationChange(location);
       onOpenChange(false);
+    } else {
+      toast({
+        title: "שגיאה",
+        description: "אנא הזן שם עיר תקין",
+        variant: "destructive",
+      });
     }
   };
 
@@ -44,12 +59,19 @@ export function LocationOverrideDialog({
     setLoading(true);
     try {
       const locationData = await getCurrentLocation();
-      onLocationChange(locationData.city);
-      toast({
-        title: "המיקום עודכן",
-        description: `המיקום עודכן ל${locationData.city} בהתבסס על המיקום הנוכחי שלך`,
-      });
-      onOpenChange(false);
+      const cityName = await reverseGeocode(locationData.latitude, locationData.longitude);
+      
+      if (cityName) {
+        setLocation(cityName);
+        onLocationChange(cityName);
+        toast({
+          title: "המיקום עודכן",
+          description: `המיקום עודכן ל${cityName} בהתבסס על המיקום הנוכחי שלך`,
+        });
+        onOpenChange(false);
+      } else {
+        throw new Error("לא ניתן לאתר את שם העיר");
+      }
     } catch (error) {
       console.error("Error getting current location:", error);
       toast({
@@ -63,7 +85,7 @@ export function LocationOverrideDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md" dir="rtl">
         <DialogHeader>
           <DialogTitle className="text-right">עדכון מיקום</DialogTitle>

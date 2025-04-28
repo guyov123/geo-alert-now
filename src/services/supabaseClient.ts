@@ -10,13 +10,20 @@ export async function updateUserLocation(location: string) {
       throw new Error("User not authenticated");
     }
     
-    const { error } = await supabase
+    console.log("Updating location for user:", user.id, "to:", location);
+    
+    const { error, data } = await supabase
       .from('profiles')
       .update({ location, updated_at: new Date().toISOString() })
-      .eq('id', user.id);
+      .eq('id', user.id)
+      .select();
     
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase error updating location:", error);
+      throw error;
+    }
     
+    console.log("Location update successful:", data);
     return location;
   } catch (error) {
     console.error("Error updating user location:", error);
@@ -29,8 +36,11 @@ export async function getUserLocation(): Promise<string> {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
+      console.log("No authenticated user found, returning default location");
       return "לא ידוע";
     }
+    
+    console.log("Getting location for user:", user.id);
     
     const { data, error } = await supabase
       .from('profiles')
@@ -38,8 +48,12 @@ export async function getUserLocation(): Promise<string> {
       .eq('id', user.id)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase error getting location:", error);
+      throw error;
+    }
     
+    console.log("Location retrieved:", data?.location);
     return data?.location || "לא ידוע";
   } catch (error) {
     console.error("Error getting user location:", error);
