@@ -27,9 +27,16 @@ export async function getRSSSources(): Promise<RSSSource[]> {
 }
 
 export async function addRSSSource(name: string, url: string): Promise<RSSSource> {
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
   const { data, error } = await supabase
     .from('rss_sources')
-    .insert([{ name, url }])
+    .insert([{ name, url, user_id: user.id }])
     .select()
     .single();
 

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { RSSSource, getRSSSources, addRSSSource, toggleRSSSource, deleteRSSSource } from "@/services/rssSourcesService";
-import { CheckCircle, XCircle, Plus, Trash } from "lucide-react";
+import { Plus, Trash } from "lucide-react";
 import { useLocation } from "@/hooks/use-location";
 
 const RssSources = () => {
@@ -19,7 +19,7 @@ const RssSources = () => {
   const [error, setError] = useState<string | null>(null);
   const [isAddingSource, setIsAddingSource] = useState<boolean>(false);
   const { toast } = useToast();
-  const { location } = useLocation();
+  const { location, handleLocationChange } = useLocation();
 
   const fetchSources = async () => {
     setLoading(true);
@@ -111,6 +111,11 @@ const RssSources = () => {
     }
   };
 
+  // Create a dummy function for snoozeChange since we don't need it here
+  const handleSnoozeChange = (minutes: number) => {
+    console.log(`Snooze set for ${minutes} minutes, but not used in RSS page`);
+  };
+
   if (loading) {
     return <LoadingSpinner message="טוען מקורות RSS..." />;
   }
@@ -120,6 +125,8 @@ const RssSources = () => {
       <Header 
         location={location}
         snoozeActive={false}
+        onLocationChange={handleLocationChange}
+        onSnoozeChange={handleSnoozeChange}
       />
       
       <main className="flex-1 container mx-auto px-4 py-6">
