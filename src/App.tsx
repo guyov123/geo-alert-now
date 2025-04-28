@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import History from "./pages/History";
+import { AuthRoute } from "./components/AuthRoute";
 
 const queryClient = new QueryClient();
 
@@ -18,9 +19,16 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          {/* נתיבים פתוחים (ללא אימות נדרש) */}
           <Route path="/auth" element={<Auth />} />
-          <Route path="/history" element={<History />} />
+          
+          {/* נתיבים מוגנים (דורשים אימות) */}
+          <Route element={<AuthRoute />}>
+            <Route path="/" element={<Index />} />
+            <Route path="/history" element={<History />} />
+          </Route>
+          
+          {/* נתיב עבור דף שגיאה 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
