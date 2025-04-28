@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import { Alert, RSSItem } from '@/types';
 import { getOpenAIApiKeyFromSupabase, saveOpenAIApiKey, hasOpenAIApiKeyInSupabase } from './supabaseClient';
@@ -92,15 +93,48 @@ function buildPrompt(text: string): string {
 function isLocationRelevant(location: string, userLocation: string): boolean {
   if (!location || !userLocation) return false;
   
+  // נרמול המחרוזות להשוואה טובה יותר
+  const normalizedLocation = location.trim().toLowerCase();
+  const normalizedUserLocation = userLocation.trim().toLowerCase();
+  
   // בדיקה פשוטה - האם המיקום שווה למיקום המשתמש
-  if (location.includes(userLocation) || userLocation.includes(location)) {
+  if (normalizedLocation === normalizedUserLocation) {
+    return true;
+  }
+  
+  // בדיקת וריאציות של שמות ערים
+  // תל אביב ותל אביב-יפו
+  if ((normalizedLocation.includes('תל אביב') && normalizedUserLocation.includes('תל אביב')) ||
+      (normalizedLocation.includes('ת"א') && (normalizedUserLocation.includes('תל אביב') || normalizedUserLocation.includes('ת"א')))) {
+    return true;
+  }
+  
+  // בדיקת הכלה - אם אחד מהם מכיל את השני
+  if (normalizedLocation.includes(normalizedUserLocation) || normalizedUserLocation.includes(normalizedLocation)) {
     return true;
   }
   
   // רשימת מיקומים שייחשבו כרלוונטיים לכל המשתמשים
   const nationalLocations = ["ישראל", "כל הארץ", "המרכז", "הדרום", "הצפון", "גוש דן"];
-  if (nationalLocations.some(loc => location.includes(loc))) {
+  if (nationalLocations.some(loc => normalizedLocation.includes(loc.toLowerCase()))) {
     return true;
+  }
+  
+  // רשימת מיקומים קרובים - למשל אזורים שקרובים לתל אביב
+  const locationMap = {
+    'תל אביב': ['רמת גן', 'גבעתיים', 'בני ברק', 'חולון', 'בת ים', 'רמת השרון', 'הרצליה'],
+    'ירושלים': ['מעלה אדומים', 'גבעת זאב', 'בית שמש'],
+    'חיפה': ['קריות', 'טירת הכרמל', 'נשר'],
+    'באר שבע': ['אופקים', 'נתיבות', 'רהט', 'דימונה']
+  };
+  
+  // בדיקה אם המיקום הוא חלק מאזור קרוב למיקום המשתמש
+  for (const [area, nearby] of Object.entries(locationMap)) {
+    if (normalizedUserLocation.includes(area)) {
+      if (nearby.some(place => normalizedLocation.includes(place.toLowerCase()))) {
+        return true;
+      }
+    }
   }
   
   return false;

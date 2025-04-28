@@ -5,6 +5,15 @@ import { getCurrentLocation, reverseGeocode } from "@/services/locationService";
 import { updateUserLocation, getUserLocation } from "@/services/supabaseClient";
 import { supabase } from "@/integrations/supabase/client";
 
+// פונקציה לנרמול שמות מיקומים
+const normalizeLocationName = (location: string): string => {
+  // טיפול במקרים מיוחדים
+  if (location.includes('תל אביב') || location.includes('ת"א')) {
+    return 'תל אביב-יפו'; // נרמול לשם הרשמי של העיר
+  }
+  return location;
+};
+
 export function useLocation() {
   const [location, setLocation] = useState<string>("טוען...");
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -44,14 +53,17 @@ export function useLocation() {
     try {
       setIsLoading(true);
       
+      // נרמול המיקום
+      const normalizedLocation = normalizeLocationName(newLocation);
+      
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
         try {
-          await updateUserLocation(newLocation);
+          await updateUserLocation(normalizedLocation);
           toast({
             title: "המיקום עודכן",
-            description: `המיקום שלך עודכן ל${newLocation}`,
+            description: `המיקום שלך עודכן ל${normalizedLocation}`,
           });
         } catch (error) {
           console.error("Error updating location in Supabase:", error);
@@ -63,7 +75,7 @@ export function useLocation() {
         }
       }
       
-      setLocation(newLocation);
+      setLocation(normalizedLocation);
     } catch (error) {
       console.error("Error in handleLocationChange:", error);
       toast({
@@ -87,7 +99,9 @@ export function useLocation() {
           try {
             const savedLocation = await getUserLocation();
             if (savedLocation !== "לא ידוע") {
-              setLocation(savedLocation);
+              // נרמול המיקום
+              const normalizedLocation = normalizeLocationName(savedLocation);
+              setLocation(normalizedLocation);
               setIsLoading(false);
               return;
             }
@@ -100,17 +114,20 @@ export function useLocation() {
         const userLocation = await getCurrentLocation();
         const cityName = await reverseGeocode(userLocation.latitude, userLocation.longitude);
         
+        // נרמול המיקום
+        const normalizedLocation = normalizeLocationName(cityName);
+        
         if (user) {
           // Save location history and update user location
-          await saveLocationHistory(userLocation.latitude, userLocation.longitude, cityName);
+          await saveLocationHistory(userLocation.latitude, userLocation.longitude, normalizedLocation);
           try {
-            await updateUserLocation(cityName);
+            await updateUserLocation(normalizedLocation);
           } catch (error) {
             console.error("Error saving location to Supabase:", error);
           }
         }
         
-        setLocation(cityName);
+        setLocation(normalizedLocation);
       } catch (error) {
         console.error("Error getting location:", error);
         setLocation("לא ידוע");
