@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +12,26 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const { toast } = useToast();
 
   // Check if user is already logged in
-  const session = supabase.auth.getSession();
-  if (session) {
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      setAuthenticated(!!data.session);
+    };
+    
+    checkAuth();
+  }, []);
+
+  // Show loading state while checking authentication
+  if (authenticated === null) {
+    return null; // Or show a loading spinner
+  }
+
+  // Redirect if authenticated
+  if (authenticated) {
     return <Navigate to="/" replace />;
   }
 
