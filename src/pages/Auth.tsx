@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,6 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const { toast } = useToast();
 
-  // Check if user is already logged in
   useEffect(() => {
     const checkAuth = async () => {
       const { data } = await supabase.auth.getSession();
@@ -27,12 +25,10 @@ export default function Auth() {
     checkAuth();
   }, []);
 
-  // Show loading state while checking authentication
   if (authenticated === null) {
-    return null; // Or show a loading spinner
+    return null;
   }
 
-  // Redirect if authenticated
   if (authenticated) {
     return <Navigate to="/" replace />;
   }
@@ -70,7 +66,6 @@ export default function Auth() {
     setLoading(true);
     
     try {
-      // Make sure to provide the required email and password
       if (!email || !password) {
         throw new Error("אנא הזן אימייל וסיסמה");
       }
@@ -82,19 +77,13 @@ export default function Auth() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: window.location.origin,
-          data: {
-            email: email
-          }
-        }
       });
 
       if (error) throw error;
       
       toast({
         title: "נרשמת בהצלחה",
-        description: "בדוק את תיבת האימייל שלך להשלמת ההרשמה",
+        description: "מיד תועבר לדף הבית",
       });
     } catch (error: any) {
       console.error("Error signing up:", error);
