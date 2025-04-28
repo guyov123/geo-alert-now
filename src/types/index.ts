@@ -9,6 +9,7 @@ export interface Alert {
   source: string;
   link: string;
   isSecurityEvent: boolean; // שדה חדש לסימון אירועי ביטחון
+  imageUrl?: string; // Optional field for alert images
 }
 
 export interface LocationData {
