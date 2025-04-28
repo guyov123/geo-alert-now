@@ -9,22 +9,91 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      location_history: {
+        Row: {
+          city: string | null
+          created_at: string | null
+          id: string
+          latitude: number
+          longitude: number
+          user_id: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          latitude: number
+          longitude: number
+          user_id: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          categories: string[] | null
+          created_at: string | null
+          enabled: boolean | null
+          id: string
+          radius_km: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          categories?: string[] | null
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          radius_km?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          categories?: string[] | null
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          radius_km?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
+          fcm_token: string | null
           id: string
+          last_location_lat: number | null
+          last_location_lng: number | null
+          last_location_update: string | null
           location: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          fcm_token?: string | null
           id: string
+          last_location_lat?: number | null
+          last_location_lng?: number | null
+          last_location_update?: string | null
           location?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          fcm_token?: string | null
           id?: string
+          last_location_lat?: number | null
+          last_location_lng?: number | null
+          last_location_update?: string | null
           location?: string | null
           updated_at?: string | null
         }

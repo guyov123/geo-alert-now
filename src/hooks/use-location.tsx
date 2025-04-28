@@ -3,11 +3,33 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentLocation, reverseGeocode } from "@/services/locationService";
 import { updateUserLocation, getUserLocation } from "@/services/supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 
 export function useLocation() {
   const [location, setLocation] = useState<string>("טוען...");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
+
+  const saveLocationHistory = async (lat: number, lng: number, city: string) => {
+    try {
+      const { error } = await supabase
+        .from('location_history')
+        .insert([
+          { 
+            latitude: lat,
+            longitude: lng,
+            city: city,
+            user_id: (await supabase.auth.getUser()).data.user?.id
+          }
+        ]);
+
+      if (error) {
+        console.error("Error saving location history:", error);
+      }
+    } catch (error) {
+      console.error("Error in saveLocationHistory:", error);
+    }
+  };
 
   const handleLocationChange = async (newLocation: string) => {
     if (!newLocation || newLocation.trim() === "") {
@@ -22,23 +44,25 @@ export function useLocation() {
     try {
       setIsLoading(true);
       
-      // Try to update the location in Supabase
-      try {
-        await updateUserLocation(newLocation);
-        toast({
-          title: "המיקום עודכן",
-          description: `המיקום שלך עודכן ל${newLocation}`,
-        });
-      } catch (error) {
-        console.log("Error updating location in Supabase:", error);
-        // If there's an authentication error, just update local state
-        toast({
-          title: "המיקום עודכן מקומית",
-          description: "המיקום עודכן באופן מקומי בלבד (לא נשמר בחשבון)"
-        });
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        try {
+          await updateUserLocation(newLocation);
+          toast({
+            title: "המיקום עודכן",
+            description: `המיקום שלך עודכן ל${newLocation}`,
+          });
+        } catch (error) {
+          console.error("Error updating location in Supabase:", error);
+          toast({
+            title: "שגיאה בעדכון מיקום",
+            description: "לא ניתן לעדכן את המיקום בשרת. המיקום נשמר מקומית בלבד.",
+            variant: "destructive"
+          });
+        }
       }
       
-      // Update local state regardless of Supabase success
       setLocation(newLocation);
     } catch (error) {
       console.error("Error in handleLocationChange:", error);
@@ -56,32 +80,34 @@ export function useLocation() {
     const initLocation = async () => {
       try {
         setIsLoading(true);
-        // First try to get location from Supabase
-        let savedLocation;
+        const { data: { user } } = await supabase.auth.getUser();
         
-        try {
-          savedLocation = await getUserLocation();
-        } catch (error) {
-          console.log("Error fetching location from Supabase:", error);
-          savedLocation = "לא ידוע";
+        if (user) {
+          // First try to get location from Supabase
+          try {
+            const savedLocation = await getUserLocation();
+            if (savedLocation !== "לא ידוע") {
+              setLocation(savedLocation);
+              setIsLoading(false);
+              return;
+            }
+          } catch (error) {
+            console.error("Error fetching location from Supabase:", error);
+          }
         }
         
-        if (savedLocation !== "לא ידוע") {
-          setLocation(savedLocation);
-          setIsLoading(false);
-          return;
-        }
-        
-        // If no saved location, try to get current location
+        // If no saved location or not logged in, try to get current location
         const userLocation = await getCurrentLocation();
         const cityName = await reverseGeocode(userLocation.latitude, userLocation.longitude);
         
-        // Try to update location in Supabase
-        try {
-          await updateUserLocation(cityName);
-        } catch (error) {
-          console.log("Error saving initial location to Supabase:", error);
-          // Continue without saving to Supabase
+        if (user) {
+          // Save location history and update user location
+          await saveLocationHistory(userLocation.latitude, userLocation.longitude, cityName);
+          try {
+            await updateUserLocation(cityName);
+          } catch (error) {
+            console.error("Error saving location to Supabase:", error);
+          }
         }
         
         setLocation(cityName);
@@ -94,6 +120,11 @@ export function useLocation() {
     };
 
     initLocation();
+    
+    // Set up periodic location updates
+    const intervalId = setInterval(initLocation, 5 * 60 * 1000); // Update every 5 minutes
+    
+    return () => clearInterval(intervalId);
   }, []);
 
   return {
