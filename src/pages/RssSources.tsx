@@ -5,10 +5,10 @@ import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { RSSSource, getRSSSources, addRSSSource, toggleRSSSource, deleteRSSSource } from "@/services/rssSourcesService";
-import { Plus, Trash } from "lucide-react";
+import { Plus, Trash, Check, X } from "lucide-react";
 import { useLocation } from "@/hooks/use-location";
 
 const RssSources = () => {
@@ -180,10 +180,18 @@ const RssSources = () => {
               sources.map((source) => (
                 <div key={source.id} className="bg-white border rounded-lg p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Switch
-                      checked={source.is_active}
-                      onCheckedChange={(checked) => handleToggleSource(source.id, checked)}
-                    />
+                    <div className="flex items-center space-x-2 ml-2">
+                      <Checkbox
+                        checked={source.is_active}
+                        onCheckedChange={(checked) => handleToggleSource(source.id, checked as boolean)}
+                        id={`checkbox-${source.id}`}
+                      />
+                      {source.is_active ? (
+                        <Check className="h-6 w-6 text-green-500" />
+                      ) : (
+                        <X className="h-6 w-6 text-red-500" />
+                      )}
+                    </div>
                     {!source.is_default && (
                       <Button
                         variant="ghost"
