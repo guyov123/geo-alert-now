@@ -13,6 +13,7 @@ import { useAlerts } from "@/hooks/use-alerts";
 import { useLocation } from "@/hooks/use-location";
 import { useSnooze } from "@/hooks/use-snooze";
 import { hasOpenAIApiKey } from "@/services/alertService";
+import { CalmChat } from "@/components/CalmChat";
 
 const Index = () => {
   const { toast } = useToast();
@@ -114,6 +115,10 @@ const Index = () => {
             <Key className="h-4 w-4 text-geoalert-turquoise" />
             <span>API הגדרות</span>
           </Button>
+        </div>
+
+        <div className="mb-8">
+          <CalmChat />
         </div>
 
         <SnoozeAlert 
