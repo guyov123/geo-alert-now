@@ -1,9 +1,12 @@
 
-import { Bell, MapPin, Settings } from "lucide-react";
+import { Bell, MapPin, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { LocationOverrideDialog } from "./LocationOverrideDialog";
 import { SettingsDialog } from "./SettingsDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 interface HeaderProps {
   location: string;
@@ -15,6 +18,29 @@ interface HeaderProps {
 export function Header({ location, onLocationChange, onSnoozeChange, snoozeActive }: HeaderProps) {
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "התנתקת בהצלחה",
+        description: "להתראות!"
+      });
+      
+      navigate("/auth");
+    } catch (error) {
+      console.error("Error logging out:", error);
+      toast({
+        title: "שגיאה בהתנתקות",
+        description: "אנא נסה שוב",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <header className="sticky top-0 z-10 w-full bg-geoalert-white border-b border-gray-200 shadow-sm">
@@ -41,6 +67,15 @@ export function Header({ location, onLocationChange, onSnoozeChange, snoozeActiv
             onClick={() => setSettingsDialogOpen(true)}
           >
             <Settings className="h-5 w-5 text-gray-600" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            title="התנתק"
+          >
+            <LogOut className="h-5 w-5 text-gray-600" />
           </Button>
         </div>
       </div>
