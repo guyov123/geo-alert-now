@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentLocation, reverseGeocode } from "@/services/locationService";
@@ -10,8 +9,17 @@ const normalizeLocationName = (location: string): string => {
   // בדיקה אם המחרוזת ריקה
   if (!location) return "לא ידוע";
   
-  // המרה לאותיות קטנות לצורך השוואה טובה יותר
-  const locationLower = location.trim().toLowerCase();
+  // המרה למחרוזת בסיסית
+  let normalized = location.trim();
+  
+  // החלפת כל סוגי המקפים לאחיד (מקף רגיל)
+  normalized = normalized.replace(/[\u2010-\u2015\u2212\u23AF\uFE58\uFF0D\u002D\u05BE]/g, '-');
+  
+  // הסרת רווחים מיותרים
+  normalized = normalized.replace(/\s+/g, ' ');
+  
+  // המרה לאותיות קטנות לצורך השוואה
+  const locationLower = normalized.toLowerCase();
   
   // טיפול במקרים מיוחדים של תל אביב
   if (locationLower.includes('תל אביב') || locationLower.includes('ת"א') || locationLower.includes('תל-אביב')) {
@@ -19,7 +27,7 @@ const normalizeLocationName = (location: string): string => {
   }
   
   // החזרת המחרוזת המקורית אם לא נמצאה התאמה מיוחדת
-  return location;
+  return normalized;
 };
 
 export function useLocation() {
@@ -107,7 +115,7 @@ export function useLocation() {
           try {
             const savedLocation = await getUserLocation();
             if (savedLocation !== "לא ידוע") {
-              // נרמול המיקום
+              // נרמול המ��קום
               const normalizedLocation = normalizeLocationName(savedLocation);
               setLocation(normalizedLocation);
               setIsLoading(false);

@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { Alert, RSSItem } from '@/types';
 import { getOpenAIApiKeyFromSupabase, saveOpenAIApiKey, hasOpenAIApiKeyInSupabase } from './supabaseClient';
@@ -75,7 +74,17 @@ export async function setOpenAIApiKey(key: string): Promise<void> {
 function normalizeLocation(location: string): string {
   if (!location) return "";
   
-  const normalized = location.trim().toLowerCase();
+  // המרה למחרוזת בסיסית
+  let normalized = location.trim();
+  
+  // החלפת כל סוגי המקפים לאחיד (מקף רגיל)
+  normalized = normalized.replace(/[\u2010-\u2015\u2212\u23AF\uFE58\uFF0D\u002D\u05BE]/g, '-');
+  
+  // הסרת רווחים מיותרים
+  normalized = normalized.replace(/\s+/g, ' ');
+  
+  // המרה לאותיות קטנות לצורך השוואה
+  normalized = normalized.toLowerCase();
   
   // נרמול תל אביב ותל אביב-יפו
   if (normalized.includes('תל אביב') || normalized.includes('ת"א') || normalized.includes('תל-אביב')) {
@@ -111,18 +120,18 @@ function isLocationRelevant(location: string, userLocation: string): boolean {
   const normalizedLocation = normalizeLocation(location);
   const normalizedUserLocation = normalizeLocation(userLocation);
   
-  console.log(`Comparing normalized locations: "${normalizedLocation}" with user location "${normalizedUserLocation}"`);
+  console.log(`DEBUG: Comparing normalized locations: "${normalizedLocation}" with user location "${normalizedUserLocation}"`);
   
   // בדיקה ישירה לאחר נרמול
   if (normalizedLocation === normalizedUserLocation) {
-    console.log("Direct match found after normalization");
+    console.log("DEBUG: Direct match found after normalization");
     return true;
   }
   
   // רשימת מיקומים שייחשבו כרלוונטיים לכל המשתמשים
   const nationalLocations = ["ישראל", "כל הארץ", "המרכז", "הדרום", "הצפון", "גוש דן"];
-  if (nationalLocations.some(loc => normalizedLocation.includes(loc.toLowerCase()))) {
-    console.log("National location match found");
+  if (nationalLocations.some(loc => normalizedLocation.includes(normalizeLocation(loc)))) {
+    console.log("DEBUG: National location match found");
     return true;
   }
   
@@ -136,9 +145,10 @@ function isLocationRelevant(location: string, userLocation: string): boolean {
   
   // בדיקה אם המיקום הוא חלק מאזור קרוב למיקום המשתמש
   for (const [area, nearby] of Object.entries(locationMap)) {
-    if (normalizedUserLocation.includes(area)) {
-      if (nearby.some(place => normalizedLocation.includes(place.toLowerCase()))) {
-        console.log(`Nearby location match found: ${area} includes ${normalizedLocation}`);
+    const normalizedArea = normalizeLocation(area);
+    if (normalizedUserLocation === normalizedArea) {
+      if (nearby.some(place => normalizedLocation.includes(normalizeLocation(place)))) {
+        console.log(`DEBUG: Nearby location match found: ${area} includes ${normalizedLocation}`);
         return true;
       }
     }
@@ -146,11 +156,11 @@ function isLocationRelevant(location: string, userLocation: string): boolean {
   
   // בדיקת הכלה - אם אחד מהם מכיל את השני
   if (normalizedLocation.includes(normalizedUserLocation) || normalizedUserLocation.includes(normalizedLocation)) {
-    console.log("Substring match found");
+    console.log("DEBUG: Substring match found");
     return true;
   }
   
-  console.log("No location match found");
+  console.log("DEBUG: No location match found");
   return false;
 }
 

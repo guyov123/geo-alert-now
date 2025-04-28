@@ -21,6 +21,8 @@ export function useAlerts(location: string, snoozeActive: boolean) {
     setLoading(true);
     setError(null);
     
+    console.log(`DEBUG: Starting alert refresh for location: ${userLocation}`);
+    
     try {
       const rssItems = await fetchRssFeeds();
       console.log(`Fetched ${rssItems.length} RSS items`); 
@@ -51,8 +53,14 @@ export function useAlerts(location: string, snoozeActive: boolean) {
       // הדפסה לדיבאג של התראות רלוונטיות
       const relevantAlerts = classifiedAlerts.filter(alert => alert.isRelevant);
       console.log(`Found ${relevantAlerts.length} relevant alerts for location: ${userLocation}`);
+      console.log("DEBUG: User location after normalization for comparison:", userLocation);
       relevantAlerts.forEach(alert => {
-        console.log(`Relevant alert: "${alert.title}" | Location: ${alert.location}`);
+        console.log(`DEBUG: Relevant alert: "${alert.title}" | Location: ${alert.location}`);
+      });
+      
+      // פירוט מלא של ההתראות לדיבאג
+      classifiedAlerts.forEach(alert => {
+        console.log(`DEBUG: Alert "${alert.title}" | Location: ${alert.location} | Relevant: ${alert.isRelevant}`);
       });
       
       // שמירת ההתראות להיסטוריה

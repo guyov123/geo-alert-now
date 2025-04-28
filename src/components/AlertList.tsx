@@ -3,7 +3,7 @@ import { Alert } from "@/types";
 import { AlertCard } from "./AlertCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
-import { Loader2, Brain } from "lucide-react";
+import { Loader2, Brain, AlertCircle } from "lucide-react";
 import { hasLocalApiKey } from "@/services/alertService";
 
 interface AlertListProps {
@@ -19,6 +19,13 @@ export function AlertList({ alerts }: AlertListProps) {
     const relevantAlerts = alerts.filter(alert => alert.isRelevant);
     setRelevantCount(relevantAlerts.length);
     console.log(`AlertList found ${relevantAlerts.length} relevant alerts out of ${alerts.length} total alerts`);
+    
+    // יומן מיקומים לדיבאג
+    console.log("DEBUG: Alerts with locations:", alerts.map(alert => ({
+      title: alert.title,
+      location: alert.location,
+      isRelevant: alert.isRelevant
+    })));
     
     // For the "nearby" tab, include alerts that have known locations
     // but might not have been marked as directly relevant to the user's city
@@ -84,8 +91,12 @@ export function AlertList({ alerts }: AlertListProps) {
               <AlertCard key={alert.id} alert={alert} />
             ))
           ) : (
-            <div className="text-center py-8 text-gray-500" dir="rtl">
-              <p>אין התראות רלוונטיות כרגע</p>
+            <div className="text-center py-8" dir="rtl">
+              <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-500">אין התראות רלוונטיות כרגע</p>
+              <p className="text-sm text-gray-400 mt-1">
+                נסה לבדוק את לשונית "כל ההתראות" או "לפי מיקום"
+              </p>
             </div>
           )}
         </TabsContent>
