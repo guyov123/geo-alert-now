@@ -66,8 +66,9 @@ export function AlertList({ alerts }: AlertListProps) {
   if (alerts.length === 0) {
     return (
       <div className="w-full text-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-geoalert-turquoise mx-auto mb-4" />
-        <p className="text-gray-600" dir="rtl">טוען התראות...</p>
+        <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-700 mb-2" dir="rtl">📍 אין כרגע התראות באזור זה</h3>
+        <p className="text-gray-500" dir="rtl">תהיה בטוח – אנו עוקבים עבורך.</p>
       </div>
     );
   }
@@ -127,8 +128,10 @@ export function AlertList({ alerts }: AlertListProps) {
             <AlertCard key={alert.id} alert={alert} />
           ))
         ) : (
-          <div className="text-center py-8" dir="rtl">
-            <p className="text-gray-500">אין התראות זמינות בתצוגה זו</p>
+          <div className="text-center py-12">
+            <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-700 mb-2" dir="rtl">📍 אין כרגע התראות באזור זה</h3>
+            <p className="text-gray-500" dir="rtl">תהיה בטוח – אנו עוקבים עבורך.</p>
           </div>
         )}
       </div>
