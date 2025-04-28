@@ -1,16 +1,18 @@
 
 import { Alert } from "@/types";
 import { AlertCard } from "./AlertCard";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect } from "react";
-import { Loader2, Brain, AlertCircle } from "lucide-react";
+import { Loader2, Bell, MapPin, List } from "lucide-react";
 import { hasLocalApiKey } from "@/services/alertService";
+import { Button } from "./ui/button";
+import { cn } from "@/lib/utils";
 
 interface AlertListProps {
   alerts: Alert[];
 }
 
 export function AlertList({ alerts }: AlertListProps) {
+  const [activeView, setActiveView] = useState<'relevant' | 'all' | 'nearby'>('relevant');
   const [relevantCount, setRelevantCount] = useState(0);
   const [nearbyAlerts, setNearbyAlerts] = useState<Alert[]>([]);
   const [usingAI, setUsingAI] = useState(false);
@@ -47,12 +49,20 @@ export function AlertList({ alerts }: AlertListProps) {
     checkAI();
   }, [alerts]);
 
-  // Split alerts by relevance for different tabs
-  const relevantAlerts = alerts.filter(alert => alert.isRelevant);
-  
-  // Filter alerts that are security events - for "all alerts" tab
-  const securityAlerts = alerts.filter(alert => alert.isSecurityEvent);
-  
+  // Filter alerts based on active view
+  const getFilteredAlerts = () => {
+    switch (activeView) {
+      case 'relevant':
+        return alerts.filter(alert => alert.isRelevant);
+      case 'all':
+        return alerts.filter(alert => alert.isSecurityEvent);
+      case 'nearby':
+        return nearbyAlerts;
+      default:
+        return alerts;
+    }
+  };
+
   if (alerts.length === 0) {
     return (
       <div className="w-full text-center py-12">
@@ -61,73 +71,67 @@ export function AlertList({ alerts }: AlertListProps) {
       </div>
     );
   }
+
+  const filteredAlerts = getFilteredAlerts();
   
   return (
-    <div className="w-full">
-      <Tabs defaultValue="relevant" dir="rtl">
-        <TabsList className="w-full">
-          <TabsTrigger value="relevant" className="flex-1 relative">
-            התראות רלוונטיות
-            {relevantCount > 0 && (
-              <span className="absolute top-0.5 -right-0.5 bg-geoalert-turquoise text-white text-xs font-bold px-1.5 rounded-full">
-                {relevantCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="all" className="flex-1">כל ההתראות</TabsTrigger>
-          <TabsTrigger value="nearby" className="flex-1">לפי מיקום</TabsTrigger>
-        </TabsList>
-        
-        {usingAI && (
-          <div className="flex items-center justify-end mt-2 text-xs text-gray-500">
-            <Brain className="h-3 w-3 mr-1" />
-            <span>סיווג באמצעות AI</span>
+    <div className="w-full relative">
+      {/* Floating Action Buttons */}
+      <div className="fixed right-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-3 z-50">
+        <Button
+          variant="secondary"
+          size="icon"
+          onClick={() => setActiveView('relevant')}
+          className={cn(
+            "rounded-full shadow-lg hover:scale-110 transition-transform",
+            activeView === 'relevant' ? "bg-geoalert-turquoise text-white" : "bg-white"
+          )}
+        >
+          <Bell className="h-5 w-5" />
+          {relevantCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+              {relevantCount}
+            </span>
+          )}
+        </Button>
+
+        <Button
+          variant="secondary"
+          size="icon"
+          onClick={() => setActiveView('all')}
+          className={cn(
+            "rounded-full shadow-lg hover:scale-110 transition-transform",
+            activeView === 'all' ? "bg-geoalert-turquoise text-white" : "bg-white"
+          )}
+        >
+          <List className="h-5 w-5" />
+        </Button>
+
+        <Button
+          variant="secondary"
+          size="icon"
+          onClick={() => setActiveView('nearby')}
+          className={cn(
+            "rounded-full shadow-lg hover:scale-110 transition-transform",
+            activeView === 'nearby' ? "bg-geoalert-turquoise text-white" : "bg-white"
+          )}
+        >
+          <MapPin className="h-5 w-5" />
+        </Button>
+      </div>
+
+      {/* Alert Cards */}
+      <div className="space-y-4">
+        {filteredAlerts.length > 0 ? (
+          filteredAlerts.map(alert => (
+            <AlertCard key={alert.id} alert={alert} />
+          ))
+        ) : (
+          <div className="text-center py-8" dir="rtl">
+            <p className="text-gray-500">אין התראות זמינות בתצוגה זו</p>
           </div>
         )}
-        
-        <TabsContent value="relevant" className="mt-4 space-y-4">
-          {relevantAlerts.length > 0 ? (
-            relevantAlerts.map(alert => (
-              <AlertCard key={alert.id} alert={alert} />
-            ))
-          ) : (
-            <div className="text-center py-8" dir="rtl">
-              <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-500">אין התראות רלוונטיות כרגע</p>
-              <p className="text-sm text-gray-400 mt-1">
-                נסה לבדוק את לשונית "כל ההתראות" או "לפי מיקום"
-              </p>
-            </div>
-          )}
-        </TabsContent>
-        <TabsContent value="all" className="mt-4 space-y-4">
-          {securityAlerts.length > 0 ? (
-            securityAlerts.map(alert => (
-              <AlertCard key={alert.id} alert={alert} />
-            ))
-          ) : (
-            <div className="text-center py-8 text-gray-500" dir="rtl">
-              <p>אין התראות ביטחוניות כרגע</p>
-            </div>
-          )}
-        </TabsContent>
-        <TabsContent value="nearby" className="mt-4 space-y-4">
-          {nearbyAlerts.length > 0 ? (
-            <div>
-              <div className="mb-3 text-sm text-gray-500 text-right">
-                התראות ממוינות לפי מיקום
-              </div>
-              {nearbyAlerts.map(alert => (
-                <AlertCard key={alert.id} alert={alert} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500" dir="rtl">
-              <p>אין התראות עם מיקום ידוע כרגע</p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 }
