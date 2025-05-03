@@ -61,7 +61,7 @@ serve(async (req) => {
     }
 
     if (!isValidOpenAIApiKey(openAIApiKey)) {
-      console.error("Invalid OpenAI API key format");
+      console.error(`Invalid OpenAI API key format: Key length = ${openAIApiKey.length}, starts with correct prefix = ${openAIApiKey.startsWith('sk-')}`);
       return new Response(
         JSON.stringify({ 
           error: "Invalid OpenAI API key format",
@@ -94,66 +94,89 @@ serve(async (req) => {
     }
 
     console.log("Classifying alert text:", text.substring(0, 100) + "...");
+    console.log("Using OpenAI API key (masked):", `sk-****${openAIApiKey.slice(-4)}`);
     
     // Create the prompt for OpenAI
     const prompt = buildPrompt(text);
     
-    // Call OpenAI API
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${openAIApiKey}`
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0
-      })
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API error:", errorText);
-      return new Response(
-        JSON.stringify({ 
-          error: "Error calling OpenAI API", 
-          details: errorText 
-        }),
-        { 
-          status: response.status, 
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'application/json' 
-          } 
-        }
-      );
-    }
-    
-    // Parse OpenAI response
-    const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
-    
     try {
-      // Parse the JSON response from OpenAI
-      const result = JSON.parse(aiResponse);
+      // Call OpenAI API
+      console.log("Sending request to OpenAI API...");
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openAIApiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0
+        })
+      });
       
-      // Return the classification result
-      return new Response(
-        JSON.stringify(result),
-        { 
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'application/json' 
-          } 
-        }
-      );
-    } catch (e) {
-      console.error("Error parsing AI response:", e, aiResponse);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("OpenAI API error:", errorText);
+        console.error("Status code:", response.status);
+        return new Response(
+          JSON.stringify({ 
+            error: "Error calling OpenAI API", 
+            details: errorText,
+            status: response.status
+          }),
+          { 
+            status: response.status, 
+            headers: { 
+              ...corsHeaders, 
+              'Content-Type': 'application/json' 
+            } 
+          }
+        );
+      }
+      
+      // Parse OpenAI response
+      const data = await response.json();
+      console.log("OpenAI response received successfully");
+      const aiResponse = data.choices[0].message.content;
+      
+      try {
+        // Parse the JSON response from OpenAI
+        const result = JSON.parse(aiResponse);
+        console.log("Successful classification:", result);
+        
+        // Return the classification result
+        return new Response(
+          JSON.stringify(result),
+          { 
+            headers: { 
+              ...corsHeaders, 
+              'Content-Type': 'application/json' 
+            } 
+          }
+        );
+      } catch (e) {
+        console.error("Error parsing AI response:", e, aiResponse);
+        return new Response(
+          JSON.stringify({ 
+            error: "Failed to parse AI response", 
+            aiResponse 
+          }),
+          { 
+            status: 500, 
+            headers: { 
+              ...corsHeaders, 
+              'Content-Type': 'application/json' 
+            } 
+          }
+        );
+      }
+    } catch (apiError) {
+      console.error("Error making request to OpenAI:", apiError);
       return new Response(
         JSON.stringify({ 
-          error: "Failed to parse AI response", 
-          aiResponse 
+          error: "Error making request to OpenAI API", 
+          details: apiError.message || "Unknown API error"
         }),
         { 
           status: 500, 

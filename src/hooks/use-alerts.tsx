@@ -16,7 +16,7 @@ export function useAlerts(location: string, snoozeActive: boolean) {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const refreshAlerts = async (userLocation: string) => {
+  const refreshAlerts = async (userLocation: string): Promise<void> => {
     setLoading(true);
     setError(null);
     
@@ -28,6 +28,7 @@ export function useAlerts(location: string, snoozeActive: boolean) {
       
       try {
         // Always use AI classification first
+        console.log("Attempting AI classification...");
         const classifiedAlerts = await classifyAlertsWithAI(rssItems, userLocation);
         console.log(`AI classified ${classifiedAlerts.length} security events`);
         
@@ -53,7 +54,12 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         });
         
         // שמירת ההתראות להיסטוריה
-        await saveAlertsToHistory(alertsWithIds);
+        try {
+          await saveAlertsToHistory(alertsWithIds);
+        } catch (saveError) {
+          console.error("שגיאה בשמירת התראה להיסטוריה:", saveError);
+          // Continue even if history save fails
+        }
         
         setAlerts(alertsWithIds);
       } catch (error: any) {
@@ -76,6 +82,7 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         }
         
         // Fall back to keyword classification
+        console.log("Falling back to keyword classification...");
         const classifiedAlerts = classifyAlerts(rssItems, userLocation);
         console.log(`Fallback: Keyword classified ${classifiedAlerts.length} security events`);
         
@@ -88,13 +95,19 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         });
         
         // שמירת ההתראות להיסטוריה
-        await saveAlertsToHistory(alertsWithIds);
+        try {
+          await saveAlertsToHistory(alertsWithIds);
+        } catch (saveError) {
+          console.error("שגיאה בשמירת התראה להיסטוריה:", saveError);
+          // Continue even if history save fails
+        }
         
         setAlerts(alertsWithIds);
       }
     } catch (error) {
       console.error("Error refreshing alerts:", error);
       setError("אירעה שגיאה בטעינת ההתראות");
+      throw error; // Rethrow to allow RefreshButton to handle
     } finally {
       // Ensure loading state is always turned off after attempted refresh
       setLoading(false);
@@ -104,14 +117,18 @@ export function useAlerts(location: string, snoozeActive: boolean) {
   // טעינת התראות בטעינת הדף
   useEffect(() => {
     console.log(`Location changed: ${location}, refreshing alerts...`);
-    refreshAlerts(location);
+    refreshAlerts(location).catch(err => {
+      console.error("Error in initial alerts load:", err);
+    });
   }, [location]);
 
   // רענון תקופתי של התראות
   useEffect(() => {
     const interval = setInterval(() => {
       if (!snoozeActive) {
-        refreshAlerts(location);
+        refreshAlerts(location).catch(err => {
+          console.error("Error in periodic alerts refresh:", err);
+        });
       }
     }, 60000); // רענון כל דקה
 

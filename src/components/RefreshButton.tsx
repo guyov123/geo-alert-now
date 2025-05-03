@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Brain } from "lucide-react";
+import { useState } from "react";
 
 interface RefreshButtonProps {
   onRefresh: () => void;
@@ -9,13 +10,28 @@ interface RefreshButtonProps {
 
 export function RefreshButton({ onRefresh }: RefreshButtonProps) {
   const { toast } = useToast();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    
     toast({
       title: "מרענן התראות",
       description: "המערכת מרעננת התראות בסיווג AI"
     });
-    onRefresh();
+    
+    try {
+      await onRefresh();
+      toast({
+        title: "רענון הושלם",
+        description: "התראות עודכנו בהצלחה"
+      });
+    } catch (error) {
+      console.error("Error during refresh:", error);
+      // Error will be handled by the useAlerts hook
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
@@ -25,9 +41,10 @@ export function RefreshButton({ onRefresh }: RefreshButtonProps) {
         size="sm" 
         onClick={handleRefresh}
         className="flex items-center gap-1"
+        disabled={isRefreshing}
       >
-        <Brain className="h-4 w-4 text-geoalert-turquoise" />
-        <span>רענון התראות עם סיווג AI</span>
+        <Brain className={`h-4 w-4 ${isRefreshing ? 'animate-pulse text-blue-500' : 'text-geoalert-turquoise'}`} />
+        <span>{isRefreshing ? "מרענן..." : "רענון התראות עם סיווג AI"}</span>
       </Button>
     </div>
   );
