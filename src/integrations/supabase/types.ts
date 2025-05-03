@@ -142,6 +142,30 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_default: boolean | null
+          name: string
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      rss_sources_old: {
+        Row: {
+          created_at: string | null
+          id: string
           is_active: boolean | null
           is_default: boolean | null
           name: string
@@ -199,6 +223,41 @@ export type Database = {
             columns: ["alert_id"]
             isOneToOne: false
             referencedRelation: "alerts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_rss_preferences: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          source_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          source_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          source_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_rss_preferences_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "rss_sources"
             referencedColumns: ["id"]
           },
         ]

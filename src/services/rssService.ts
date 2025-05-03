@@ -1,4 +1,3 @@
-
 import { RSSItem } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -8,10 +7,22 @@ const RSS_PROXY_API = "https://api.allorigins.win/raw?url=";
 export async function fetchRssFeeds(): Promise<RSSItem[]> {
   try {
     // Get user's active RSS sources
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.warn("User not authenticated, using mock data");
+      return getMockRssItems();
+    }
+    
+    // Get active sources for the current user
     const { data: sources, error: sourcesError } = await supabase
       .from('rss_sources')
-      .select('url')
-      .eq('is_active', true);
+      .select(`
+        url,
+        user_rss_preferences!inner (is_active)
+      `)
+      .eq('user_rss_preferences.user_id', user.id)
+      .eq('user_rss_preferences.is_active', true);
     
     if (sourcesError) {
       console.error("Error fetching RSS sources:", sourcesError);
