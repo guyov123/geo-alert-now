@@ -14,18 +14,26 @@ export async function saveAlertToHistory(alert: Alert): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (user) {
+      console.log("Saving alert to history for authenticated user:", user.id);
+      
       // בדיקה אם ההתראה קיימת בטבלת alerts
-      const { data: existingAlert } = await supabase
+      const { data: existingAlert, error: checkError } = await supabase
         .from('alerts')
         .select('id')
         .eq('title', alert.title)
         .eq('timestamp', alert.timestamp)
         .maybeSingle();
       
+      if (checkError) {
+        console.error("Error checking for existing alert:", checkError);
+      }
+      
       let alertId = existingAlert?.id;
       
       // אם ההתראה לא קיימת, יש להוסיף אותה
       if (!alertId) {
+        console.log("Alert doesn't exist, inserting new alert");
+        
         const { data: newAlert, error: insertError } = await supabase
           .from('alerts')
           .insert({
@@ -47,27 +55,34 @@ export async function saveAlertToHistory(alert: Alert): Promise<void> {
         }
         
         alertId = newAlert.id;
+        console.log("New alert inserted with ID:", alertId);
+      } else {
+        console.log("Alert already exists with ID:", alertId);
       }
       
       // הוספת הקישור להיסטוריית המשתמש
       if (alertId) {
+        console.log("Adding alert to user history:", alertId);
+        
         const { error: historyError } = await supabase
           .from('user_alert_history')
           .insert({
             user_id: user.id,
             alert_id: alertId,
             is_relevant: alert.isRelevant || false
-          })
-          .select();
+          });
         
         if (historyError && !historyError.message.includes('duplicate')) {
           console.error("שגיאה בהוספת התראה להיסטוריית המשתמש:", historyError);
           // אם יש שגיאה בשמירה לסופאבייס, נשמור באחסון מקומי
           saveAlertToLocalStorage(alert);
+        } else {
+          console.log("Alert successfully added to user history");
         }
       }
     } else {
       // אם אין משתמש מחובר, שמירה באחסון מקומי
+      console.log("No authenticated user, saving to local storage");
       saveAlertToLocalStorage(alert);
     }
   } catch (error) {
@@ -113,6 +128,8 @@ export async function getAlertHistory(): Promise<Alert[]> {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (user) {
+      console.log("Getting alert history for authenticated user:", user.id);
+      
       // קבלת היסטוריית ההתראות של המשתמש
       const { data: userAlerts, error: historyError } = await supabase
         .from('user_alert_history')
@@ -142,6 +159,8 @@ export async function getAlertHistory(): Promise<Alert[]> {
         return getAlertHistoryFromLocalStorage();
       }
       
+      console.log(`Found ${userAlerts?.length || 0} alerts in history`);
+      
       // המרת הנתונים למבנה של Alert
       return userAlerts.map(item => ({
         id: item.alerts.id,
@@ -157,6 +176,7 @@ export async function getAlertHistory(): Promise<Alert[]> {
       }));
     } else {
       // אם אין משתמש מחובר, השתמש באחסון מקומי
+      console.log("No authenticated user, getting history from local storage");
       return getAlertHistoryFromLocalStorage();
     }
   } catch (error) {
@@ -217,6 +237,8 @@ export async function clearAlertHistory(): Promise<void> {
  */
 export async function saveAlertsToHistory(alerts: Alert[]): Promise<void> {
   try {
+    console.log(`Saving ${alerts.length} alerts to history`);
+    
     // לכל התראה נפעיל את פונקציית השמירה הבודדת
     for (const alert of alerts) {
       if (alert.isSecurityEvent) {
@@ -230,6 +252,8 @@ export async function saveAlertsToHistory(alerts: Alert[]): Promise<void> {
         await saveAlertToHistory(alert);
       }
     }
+    
+    console.log("Completed saving alerts to history");
   } catch (error) {
     console.error("שגיאה בשמירת התראות להיסטוריה:", error);
   }
