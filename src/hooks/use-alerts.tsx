@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Alert, RSSItem } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -8,7 +7,7 @@ import {
   classifyAlertsWithAI, 
   hasLocalApiKey
 } from "@/services/alertService";
-import { saveAlertsToHistory } from "@/services/historyService";
+import { saveAlertsToHistory } from "@/services/history";
 import { v4 as uuidv4 } from 'uuid';
 
 export function useAlerts(location: string, snoozeActive: boolean) {
