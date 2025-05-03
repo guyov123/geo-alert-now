@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface RSSSource {
@@ -137,3 +136,95 @@ export async function ensureUserPreferences(): Promise<void> {
   }
 }
 
+/**
+ * Adds a new RSS source for the authenticated user
+ * @param name The name of the RSS source
+ * @param url The URL of the RSS feed
+ * @returns The newly created RSS source
+ */
+export async function addRSSSource(name: string, url: string): Promise<RSSSource> {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  // First insert the source into rss_sources if it doesn't exist
+  const { data: sourceData, error: sourceError } = await supabase
+    .from('rss_sources')
+    .select('id')
+    .eq('url', url)
+    .maybeSingle();
+
+  let sourceId: string;
+
+  if (sourceError) {
+    console.error("Error checking for existing source:", sourceError);
+    throw sourceError;
+  }
+
+  if (!sourceData) {
+    // Source doesn't exist, create it
+    const { data: newSource, error: insertError } = await supabase
+      .from('rss_sources')
+      .insert({ name, url, is_default: false })
+      .select('id')
+      .single();
+
+    if (insertError) {
+      console.error("Error creating source:", insertError);
+      throw insertError;
+    }
+
+    sourceId = newSource.id;
+  } else {
+    sourceId = sourceData.id;
+  }
+
+  // Now create user preference for this source
+  const { error: prefError } = await supabase
+    .from('user_rss_preferences')
+    .insert({
+      user_id: user.id,
+      source_id: sourceId,
+      is_active: true
+    });
+
+  if (prefError) {
+    console.error("Error creating user preference:", prefError);
+    throw prefError;
+  }
+
+  // Get the complete source with preference
+  const { data: completeSource, error: fetchError } = await supabase
+    .from('rss_sources')
+    .select(`
+      id,
+      name,
+      url,
+      is_default,
+      created_at,
+      user_rss_preferences!inner (
+        is_active,
+        user_id
+      )
+    `)
+    .eq('id', sourceId)
+    .eq('user_rss_preferences.user_id', user.id)
+    .single();
+
+  if (fetchError) {
+    console.error("Error fetching complete source:", fetchError);
+    throw fetchError;
+  }
+
+  // Transform to RSSSource format
+  return {
+    id: completeSource.id,
+    name: completeSource.name,
+    url: completeSource.url,
+    is_active: completeSource.user_rss_preferences[0].is_active,
+    is_default: completeSource.is_default,
+    created_at: completeSource.created_at
+  };
+}
