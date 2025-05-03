@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock, Trash2, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
-import { getAlertHistory, clearAlertHistory } from "@/services/historyService";
+import { getAlertHistory, clearAlertHistory } from "@/services/history";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
