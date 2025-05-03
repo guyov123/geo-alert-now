@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { Alert, RSSItem } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -190,10 +189,15 @@ function createAlertFromKeywords(item: RSSItem, userLocation: string): Alert {
   };
 }
 
-// בדיקה אם AI סיווג פעיל עבור משתמש
+// בדיקה אם AI סיווג פעיל עבור משתמש - הפונקציה מוחזרת לצורכי תאימות עם קוד קיים
 export function hasLocalApiKey(): boolean {
   // All users now have access to AI classification through the Edge Function
   return true;
+}
+
+// Added for compatibility with existing code
+export function hasOpenAIApiKey(): Promise<boolean> {
+  return Promise.resolve(true);
 }
 
 // סיווג התראות באמצעות AI
@@ -212,6 +216,11 @@ export async function classifyAlertsWithAI(items: RSSItem[], userLocation: strin
     // במקרה של כשלון, ננסה שיטת מילות מפתח
     return classifyAlerts(items, userLocation);
   }
+}
+
+// Added for compatibility with existing code
+export function setOpenAIApiKey(): Promise<void> {
+  return Promise.resolve();
 }
 
 // סיווג התראות באמצעות מילות מפתח
