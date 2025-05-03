@@ -62,8 +62,7 @@ const RssSources = () => {
       
       <main className="flex-1 container mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h1 className="text-2xl font-bold mb-4 text-right">ערוצי RSS</h1>
-          <p className="text-right text-gray-600 mb-6">נהל את ערוצי ה-RSS שלך לקבלת התראות</p>
+          <h1 className="text-2xl font-bold mb-6 text-right text-geoalert-turquoise">ערוצי RSS</h1>
           
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6 text-right">
