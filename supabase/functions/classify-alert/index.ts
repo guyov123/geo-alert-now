@@ -11,6 +11,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to validate OpenAI API key format
+function isValidOpenAIApiKey(apiKey: string | undefined): boolean {
+  if (!apiKey) return false;
+  // OpenAI API keys typically start with "sk-" and are fairly long
+  return apiKey.startsWith('sk-') && apiKey.length > 20;
+}
+
 // Helper function to build the OpenAI prompt
 function buildPrompt(text: string): string {
   return `
@@ -35,12 +42,30 @@ serve(async (req) => {
   }
 
   try {
-    // Check if the API key is configured
+    // Check if the API key is configured and valid
     if (!openAIApiKey) {
       console.error("OpenAI API key is not configured in Edge Function secrets");
       return new Response(
         JSON.stringify({ 
-          error: "OpenAI API key not configured on the server" 
+          error: "OpenAI API key not configured on the server",
+          details: "Please add OPENAI_API_KEY secret in the Supabase Edge Functions settings"
+        }),
+        { 
+          status: 500, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
+    }
+
+    if (!isValidOpenAIApiKey(openAIApiKey)) {
+      console.error("Invalid OpenAI API key format");
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid OpenAI API key format",
+          details: "The OPENAI_API_KEY secret appears to be in an incorrect format. It should start with 'sk-' and be fairly long."
         }),
         { 
           status: 500, 

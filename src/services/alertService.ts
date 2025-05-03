@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import { Alert, RSSItem } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -111,12 +112,12 @@ async function classifySingleAlertWithAI(item: RSSItem, userLocation: string): P
     
     if (error) {
       console.error("Edge Function error:", error);
-      return createAlertFromKeywords(item, userLocation);
+      throw error;
     }
     
     if (!result) {
       console.error("No result from Edge Function");
-      return createAlertFromKeywords(item, userLocation);
+      throw new Error("No result from Edge Function");
     }
     
     console.log("Received response from Edge Function:", result);
@@ -140,9 +141,12 @@ async function classifySingleAlertWithAI(item: RSSItem, userLocation: string): P
       link: item.link,
       isSecurityEvent: isSecurityEvent
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error classifying alert with AI:", error);
-    return createAlertFromKeywords(item, userLocation);
+    if (error.error && typeof error.error === 'string' && error.error.includes('API key')) {
+      throw { message: "OpenAI API key error", details: error.error };
+    }
+    throw error;
   }
 }
 

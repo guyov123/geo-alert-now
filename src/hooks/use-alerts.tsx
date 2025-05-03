@@ -56,8 +56,24 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         await saveAlertsToHistory(alertsWithIds);
         
         setAlerts(alertsWithIds);
-      } catch (error) {
+      } catch (error: any) {
         console.error("AI classification failed:", error);
+        
+        // Check for specific error message from Edge Function
+        if (error.details && typeof error.details === 'string' && error.details.includes('API key')) {
+          toast({
+            title: "שגיאת סיווג AI",
+            description: "מפתח ה-API של OpenAI לא מוגדר כראוי. אנא הגדר את המפתח בהגדרות Edge Function.",
+            variant: "destructive"
+          });
+        } else {
+          // General fallback notification
+          toast({
+            title: "שגיאה בסיווג AI",
+            description: "המערכת עברה לסיווג מבוסס מילות מפתח",
+            variant: "destructive"
+          });
+        }
         
         // Fall back to keyword classification
         const classifiedAlerts = classifyAlerts(rssItems, userLocation);
@@ -75,13 +91,6 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         await saveAlertsToHistory(alertsWithIds);
         
         setAlerts(alertsWithIds);
-        
-        // Show toast notification about falling back to keyword classification
-        toast({
-          title: "שגיאה בסיווג AI",
-          description: "המערכת עברה לסיווג מבוסס מילות מפתח",
-          variant: "destructive"
-        });
       }
     } catch (error) {
       console.error("Error refreshing alerts:", error);
