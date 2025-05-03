@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Alert } from "@/types";
 import { AlertCard } from "@/components/AlertCard";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Clock, Trash2 } from "lucide-react";
+import { ArrowLeft, Clock, Trash2, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
 import { getAlertHistory, clearAlertHistory } from "@/services/historyService";
@@ -23,13 +23,30 @@ import {
 const History = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [filter, setFilter] = useState<string>("all");
+  const [loading, setLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
+  // Load alert history when component mounts
   useEffect(() => {
-    // טעינת ההיסטוריה האמיתית מהאחסון המקומי
-    const historyAlerts = getAlertHistory();
-    setAlerts(historyAlerts);
-  }, []);
+    const fetchAlertHistory = async () => {
+      setLoading(true);
+      try {
+        const historyAlerts = await getAlertHistory();
+        setAlerts(historyAlerts);
+      } catch (error) {
+        console.error("Error fetching alert history:", error);
+        toast({
+          title: "שגיאה בטעינת היסטוריה",
+          description: "לא ניתן לטעון את היסטוריית ההתראות",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchAlertHistory();
+  }, [toast]);
 
   const filteredAlerts = () => {
     switch (filter) {
@@ -48,13 +65,25 @@ const History = () => {
     }
   };
 
-  const handleClearHistory = () => {
-    clearAlertHistory();
-    setAlerts([]);
-    toast({
-      title: "היסטוריה נוקתה",
-      description: "היסטוריית ההתראות נוקתה בהצלחה",
-    });
+  const handleClearHistory = async () => {
+    setLoading(true);
+    try {
+      await clearAlertHistory();
+      setAlerts([]);
+      toast({
+        title: "היסטוריה נוקתה",
+        description: "היסטוריית ההתראות נוקתה בהצלחה",
+      });
+    } catch (error) {
+      console.error("Error clearing alert history:", error);
+      toast({
+        title: "שגיאה בניקוי היסטוריה",
+        description: "לא ניתן לנקות את היסטוריית ההתראות",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -116,17 +145,24 @@ const History = () => {
           )}
         </div>
         
-        <div className="space-y-4">
-          {filteredAlerts().length > 0 ? (
-            filteredAlerts().map(alert => (
-              <AlertCard key={alert.id} alert={alert} />
-            ))
-          ) : (
-            <div className="text-center py-8 text-gray-500" dir="rtl">
-              <p>לא נמצאו התראות בהיסטוריה</p>
-            </div>
-          )}
-        </div>
+        {loading ? (
+          <div className="flex justify-center items-center py-16">
+            <Loader2 className="h-8 w-8 text-geoalert-turquoise animate-spin" />
+            <span className="mr-2">טוען היסטוריה...</span>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredAlerts().length > 0 ? (
+              filteredAlerts().map(alert => (
+                <AlertCard key={alert.id} alert={alert} />
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500" dir="rtl">
+                <p>לא נמצאו התראות בהיסטוריה</p>
+              </div>
+            )}
+          </div>
+        )}
       </main>
       
       <footer className="mt-auto py-4 text-center text-sm text-gray-500 border-t border-gray-200 bg-white">

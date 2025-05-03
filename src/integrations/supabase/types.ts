@@ -9,6 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      alerts: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          image_url: string | null
+          is_security_event: boolean
+          link: string
+          location: string
+          source: string
+          timestamp: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          image_url?: string | null
+          is_security_event?: boolean
+          link: string
+          location: string
+          source: string
+          timestamp: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          is_security_event?: boolean
+          link?: string
+          location?: string
+          source?: string
+          timestamp?: string
+          title?: string
+        }
+        Relationships: []
+      }
       location_history: {
         Row: {
           city: string | null
@@ -131,6 +170,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_alert_history: {
+        Row: {
+          alert_id: string
+          created_at: string
+          id: string
+          is_relevant: boolean
+          user_id: string
+        }
+        Insert: {
+          alert_id: string
+          created_at?: string
+          id?: string
+          is_relevant?: boolean
+          user_id: string
+        }
+        Update: {
+          alert_id?: string
+          created_at?: string
+          id?: string
+          is_relevant?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_alert_history_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "alerts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_settings: {
         Row: {

@@ -9,6 +9,7 @@ import {
   hasLocalApiKey
 } from "@/services/alertService";
 import { saveAlertsToHistory } from "@/services/historyService";
+import { v4 as uuidv4 } from 'uuid';
 
 export function useAlerts(location: string, snoozeActive: boolean) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -63,10 +64,18 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         console.log(`DEBUG: Alert "${alert.title}" | Location: ${alert.location} | Relevant: ${alert.isRelevant}`);
       });
       
-      // שמירת ההתראות להיסטוריה
-      saveAlertsToHistory(classifiedAlerts);
+      // Add unique IDs to all alerts if missing
+      const alertsWithIds = classifiedAlerts.map(alert => {
+        if (!alert.id) {
+          return { ...alert, id: uuidv4() };
+        }
+        return alert;
+      });
       
-      setAlerts(classifiedAlerts);
+      // שמירת ההתראות להיסטוריה
+      await saveAlertsToHistory(alertsWithIds);
+      
+      setAlerts(alertsWithIds);
     } catch (error) {
       console.error("Error refreshing alerts:", error);
       setError("אירעה שגיאה בטעינת ההתראות");
