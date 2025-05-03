@@ -3,19 +3,13 @@ import { RefreshButton } from "./RefreshButton";
 import { HistoryLink } from "./HistoryLink";
 
 interface ControlsSectionProps {
-  useAI: boolean;
-  onAIToggle: () => void;
-  onApiKeyDialogOpen: () => void;
+  onRefresh: () => void;
 }
 
-export function ControlsSection({ useAI, onAIToggle, onApiKeyDialogOpen }: ControlsSectionProps) {
+export function ControlsSection({ onRefresh }: ControlsSectionProps) {
   return (
     <div className="flex justify-between mb-4">
-      <RefreshButton 
-        useAI={useAI} 
-        onAIToggle={onAIToggle} 
-        onApiKeyDialogOpen={onApiKeyDialogOpen} 
-      />
+      <RefreshButton onRefresh={onRefresh} />
       <HistoryLink />
     </div>
   );

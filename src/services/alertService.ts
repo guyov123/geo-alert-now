@@ -1,74 +1,7 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import { Alert, RSSItem } from '@/types';
-import { getOpenAIApiKeyFromSupabase, saveOpenAIApiKey, hasOpenAIApiKeyInSupabase } from './supabaseClient';
-
-// פונקציות ניהול מפתח API
-
-/**
- * קבלת מפתח API מהאחסון המקומי
- */
-export function getOpenAIApiKeyFromLocal(): string | null {
-  return localStorage.getItem('openai_api_key');
-}
-
-/**
- * בדיקה אם קיים מפתח API באחסון המקומי
- */
-export function hasLocalApiKey(): boolean {
-  return localStorage.getItem('openai_api_key') !== null;
-}
-
-/**
- * קבלת מפתח API - מנסה קודם בסופהבייס ואז באחסון המקומי
- */
-export async function getOpenAIApiKey(): Promise<string | null> {
-  try {
-    // ניסיון לקבל מפתח מסופהבייס תחילה
-    const supabaseKey = await getOpenAIApiKeyFromSupabase();
-    if (supabaseKey) return supabaseKey;
-    
-    // אם אין מפתח בסופהבייס, ננסה לקבל מהאחסון המקומי
-    return getOpenAIApiKeyFromLocal();
-  } catch (error) {
-    console.error('שגיאה בקבלת מפתח ה-API:', error);
-    // במקרה של שגיאה בסופהבייס, ננסה לקבל מהאחסון המקומי
-    return getOpenAIApiKeyFromLocal();
-  }
-}
-
-/**
- * בדיקה אם קיים מפתח API (בסופהבייס או באחסון המקומי)
- */
-export async function hasOpenAIApiKey(): Promise<boolean> {
-  try {
-    // ניסיון לבדוק בסופהבייס תחילה
-    const hasSupabaseKey = await hasOpenAIApiKeyInSupabase();
-    if (hasSupabaseKey) return true;
-    
-    // אם אין מפתח בסופהבייס, נבדוק באחסון המקומי
-    return hasLocalApiKey();
-  } catch (error) {
-    console.error('שגיאה בבדיקת קיום מפתח ה-API:', error);
-    // במקרה של שגיאה בסופהבייס, נבדוק באחסון המקומי
-    return hasLocalApiKey();
-  }
-}
-
-/**
- * שמירת מפתח API בסופהבייס ובאחסון המקומי
- */
-export async function setOpenAIApiKey(key: string): Promise<void> {
-  try {
-    // שמירה מקומית קודם
-    localStorage.setItem('openai_api_key', key);
-    
-    // ניסיון לשמור בסופהבייס
-    await saveOpenAIApiKey(key);
-  } catch (error) {
-    console.error('שגיאה בשמירת מפתח ה-API:', error);
-    // אם יש שגיאה בסופהבייס, לפחות המפתח נשמר מקומית
-  }
-}
+import { supabase } from '@/integrations/supabase/client';
 
 // פונקציית עזר לנירמול שמות מיקומים
 function normalizeLocation(location: string): string {
@@ -92,24 +25,6 @@ function normalizeLocation(location: string): string {
   }
   
   return normalized;
-}
-
-// פונקציות סיוע
-
-function buildPrompt(text: string): string {
-  return `
-טקסט: "${text}"
-
-1. האם מדובר באירוע ביטחוני? ענה true או false בלבד.
-2. אם מוזכר מיקום (עיר, יישוב, אזור גאוגרפי), כתוב את שם המקום בלבד.
-3. אם לא ניתן להב��ן מה המיקום – כתוב null.
-
-ענה בדיוק בפורמט JSON הבא:
-{
-  "is_security_event": true/false,
-  "location": "שם המקום או null"
-}
-`;
 }
 
 // פונקציה לבדיקה אם המיקום רלוונטי למשתמש
@@ -182,52 +97,30 @@ function extractSourceFromLink(link: string): string {
   }
 }
 
-// סיווג התראה באמצעות AI
+// סיווג התראה באמצעות Edge Function ב־Supabase
 async function classifySingleAlertWithAI(item: RSSItem, userLocation: string): Promise<Alert> {
   try {
     const fullText = `${item.title} ${item.description}`;
     
-    // קבלת מפתח API באמצעות הפונקציה המאוחדת
-    const apiKey = await getOpenAIApiKey();
-    
-    if (!apiKey) {
-      console.warn("No OpenAI API key found, falling back to keyword method");
-      return createAlertFromKeywords(item, userLocation);
-    }
-    
-    const prompt = buildPrompt(fullText);
-    
-    console.log("Sending request to OpenAI API...");
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
+    console.log("Sending request to Supabase Edge Function for classification");
+    const { data: result, error } = await supabase.functions.invoke('classify-alert', {
       body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0
+        text: fullText,
+        userLocation
       })
     });
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API error:", errorText);
+    if (error) {
+      console.error("Edge Function error:", error);
       return createAlertFromKeywords(item, userLocation);
     }
     
-    const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
-    console.log("Received response from OpenAI:", aiResponse);
-    
-    let result;
-    try {
-      result = JSON.parse(aiResponse);
-    } catch (e) {
-      console.error("Error parsing AI response:", e, aiResponse);
+    if (!result) {
+      console.error("No result from Edge Function");
       return createAlertFromKeywords(item, userLocation);
     }
+    
+    console.log("Received response from Edge Function:", result);
     
     // לאחר בקשת המשתמש - סננו רק אירועים ביטחוניים
     const isSecurityEvent = result.is_security_event === true;
@@ -295,6 +188,12 @@ function createAlertFromKeywords(item: RSSItem, userLocation: string): Alert {
     link: item.link,
     isSecurityEvent: isSecurityEvent
   };
+}
+
+// בדיקה אם AI סיווג פעיל עבור משתמש
+export function hasLocalApiKey(): boolean {
+  // All users now have access to AI classification through the Edge Function
+  return true;
 }
 
 // סיווג התראות באמצעות AI

@@ -1,42 +1,34 @@
 
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Brain, Key } from "lucide-react";
-import { useState } from "react";
-import { hasOpenAIApiKey } from "@/services/alertService";
+import { Brain } from "lucide-react";
 
 interface RefreshButtonProps {
-  useAI: boolean;
-  onAIToggle: () => void;
-  onApiKeyDialogOpen: () => void;
+  onRefresh: () => void;
 }
 
-export function RefreshButton({ useAI, onAIToggle, onApiKeyDialogOpen }: RefreshButtonProps) {
+export function RefreshButton({ onRefresh }: RefreshButtonProps) {
   const { toast } = useToast();
+
+  const handleRefresh = () => {
+    toast({
+      title: "מרענן התראות",
+      description: "המערכת מרעננת התראות בסיווג AI"
+    });
+    onRefresh();
+  };
 
   return (
     <div className="flex justify-between mb-4">
       <Button 
         variant="outline" 
         size="sm" 
-        onClick={onAIToggle}
+        onClick={handleRefresh}
         className="flex items-center gap-1"
       >
-        <span>{useAI ? "סיווג AI" : "סיווג רגיל"}</span>
-        <div className={`h-2 w-2 rounded-full ${useAI ? "bg-green-500" : "bg-gray-400"}`}></div>
+        <Brain className="h-4 w-4 text-geoalert-turquoise" />
+        <span>רענון התראות עם סיווג AI</span>
       </Button>
-      
-      {useAI && (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={onApiKeyDialogOpen}
-          className="flex items-center gap-1 mx-2"
-        >
-          <Key className="h-4 w-4 text-geoalert-turquoise" />
-          <span>שינוי מפתח API</span>
-        </Button>
-      )}
     </div>
   );
 }
