@@ -39,11 +39,11 @@ export function RefreshButton({ onRefresh }: RefreshButtonProps) {
       variant="outline" 
       size="sm" 
       onClick={handleRefresh}
-      className="flex items-center gap-1 w-full"
+      className="flex items-center gap-1 max-w-[180px]"
       disabled={isRefreshing}
     >
       <Brain className={`h-4 w-4 ${isRefreshing ? 'animate-pulse text-blue-500' : 'text-geoalert-turquoise'}`} />
-      <span>{isRefreshing ? "מרענן..." : "רענון התראות עם סיווג AI"}</span>
+      <span className="text-xs">{isRefreshing ? "מרענן..." : "רענון התראות AI"}</span>
     </Button>
   );
 }
