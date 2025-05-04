@@ -35,17 +35,15 @@ export function RefreshButton({ onRefresh }: RefreshButtonProps) {
   };
 
   return (
-    <div className="flex justify-between mb-4">
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={handleRefresh}
-        className="flex items-center gap-1"
-        disabled={isRefreshing}
-      >
-        <Brain className={`h-4 w-4 ${isRefreshing ? 'animate-pulse text-blue-500' : 'text-geoalert-turquoise'}`} />
-        <span>{isRefreshing ? "מרענן..." : "רענון התראות עם סיווג AI"}</span>
-      </Button>
-    </div>
+    <Button 
+      variant="outline" 
+      size="sm" 
+      onClick={handleRefresh}
+      className="flex items-center gap-1 w-full"
+      disabled={isRefreshing}
+    >
+      <Brain className={`h-4 w-4 ${isRefreshing ? 'animate-pulse text-blue-500' : 'text-geoalert-turquoise'}`} />
+      <span>{isRefreshing ? "מרענן..." : "רענון התראות עם סיווג AI"}</span>
+    </Button>
   );
 }
