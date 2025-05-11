@@ -106,7 +106,9 @@ export default function Auth() {
       
       toast({
         title: "נרשמת בהצלחה",
-        description: "מיד תועבר לדף הבית",
+        description: data.user?.identities?.length === 0 
+          ? "כתובת האימייל כבר קיימת במערכת. אנא התחבר." 
+          : "מיד תועבר לדף הבית",
       });
     } catch (error: any) {
       console.error("Error signing up:", error);
