@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -42,17 +43,13 @@ export function CalmChat() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/chat-calm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input.trim() })
+      // שימוש ב-supabase.functions.invoke במקום fetch ישיר
+      const { data, error } = await supabase.functions.invoke('chat-calm', {
+        body: { message: input.trim() }
       });
-
-      const data = await response.json();
       
-      if (!response.ok) {
-        // החזרת שגיאה מהשרת
-        throw new Error(data.error || "שגיאת שרת לא ידועה");
+      if (error) {
+        throw new Error(error.message || "שגיאת שרת לא ידועה");
       }
       
       setMessages(prev => [...prev, {
@@ -64,7 +61,7 @@ export function CalmChat() {
     } catch (error) {
       console.error("Chat error:", error);
       
-      // הוספת הודעת שגיאה לצ'אט במקום טוסט
+      // הוספת הודעת שגיאה לצ'אט
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         content: "מצטער, נתקלתי בבעיה בתקשורת עם המערכת. ייתכן שחרגת ממכסת השימוש ב-API. אנא נסה שוב מאוחר יותר.",
@@ -72,7 +69,6 @@ export function CalmChat() {
         timestamp: new Date()
       }]);
       
-      // עדיין מציגים טוסט אבל עם מידע יותר ספציפי
       toast({
         title: "שגיאה בשליחת ההודעה",
         description: "ייתכן שחרגת ממכסת השימוש ב-OpenAI API או שיש תקלה זמנית",
