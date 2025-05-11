@@ -34,7 +34,7 @@ export function ApiKeyDialog({ open, onOpenChange, onSuccess }: ApiKeyDialogProp
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button onClick={handleClose} variant="primary">הבנתי</Button>
+          <Button onClick={handleClose} variant="default">הבנתי</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
