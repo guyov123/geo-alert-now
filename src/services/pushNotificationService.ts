@@ -5,39 +5,50 @@ import { Capacitor } from '@capacitor/core';
 
 export async function initPushNotifications(): Promise<void> {
   // Only run on native platforms
-  if (!isPlatformNative()) return;
+  if (!isPlatformNative()) {
+    console.log("Not a native platform, skipping push notification setup");
+    return;
+  }
 
-  // Request permission to use push notifications
-  const permissionStatus = await PushNotifications.requestPermissions();
-  
-  if (permissionStatus.receive === 'granted') {
-    // Register for push notifications
-    await PushNotifications.register();
+  try {
+    // Request permission to use push notifications
+    const permissionStatus = await PushNotifications.requestPermissions();
     
-    // Listen for FCM token
-    PushNotifications.addListener('registration', async (token) => {
-      console.log('FCM Token:', token.value);
-      await saveFCMToken(token.value);
-    });
-    
-    // Listen for push notifications
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('Notification received:', notification);
-    });
-    
-    // Listen for click on notification
-    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-      console.log('Notification action performed:', action);
-      // Navigation could be added here
-    });
+    if (permissionStatus.receive === 'granted') {
+      console.log("Push notification permission granted");
+      
+      // Register for push notifications
+      await PushNotifications.register();
+      
+      // Listen for FCM token
+      PushNotifications.addListener('registration', async (token) => {
+        console.log('FCM Token:', token.value);
+        await saveFCMToken(token.value);
+      });
+      
+      // Listen for push notifications
+      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        console.log('Notification received:', notification);
+      });
+      
+      // Listen for click on notification
+      PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+        console.log('Notification action performed:', action);
+        // Navigation could be added here
+      });
+    } else {
+      console.log("Push notification permission denied");
+    }
+  } catch (error) {
+    console.error("Error setting up push notifications:", error);
   }
 }
 
 // Save FCM token to server
 async function saveFCMToken(token: string): Promise<void> {
   try {
-    const user = supabase.auth.getUser();
-    if (!user) {
+    const user = await supabase.auth.getUser();
+    if (!user.data.user) {
       console.log('User not logged in, cannot save FCM token');
       return;
     }
@@ -45,7 +56,7 @@ async function saveFCMToken(token: string): Promise<void> {
     const { error } = await supabase
       .from('profiles')
       .update({ fcm_token: token })
-      .eq('id', (await user).data.user?.id);
+      .eq('id', user.data.user.id);
       
     if (error) throw error;
     console.log('FCM token saved successfully');

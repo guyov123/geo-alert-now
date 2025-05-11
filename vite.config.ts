@@ -20,4 +20,13 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      external: [
+        // Externalize Capacitor modules to fix build issues
+        '@capacitor/core',
+        '@capacitor/push-notifications'
+      ],
+    },
+  },
 }));
