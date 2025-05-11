@@ -1,9 +1,6 @@
 
-import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 
 interface ApiKeyDialogProps {
@@ -12,20 +9,16 @@ interface ApiKeyDialogProps {
   onSuccess: () => void;
 }
 
-// This component is no longer used as API keys are now managed server-side
-// It is kept for backward compatibility but disabled
+// Server-side only implementation - API keys are now managed on the server
 export function ApiKeyDialog({ open, onOpenChange, onSuccess }: ApiKeyDialogProps) {
-  const [apiKey, setApiKey] = useState("");
-  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSaveApiKey = async () => {
+  const handleClose = () => {
     toast({
-      title: "שינוי במערכת",
-      description: "מפתחות API מנוהלים כעת בשרת ולא נדרשת הזנה ידנית",
+      title: "מערכת עם מפתח מרכזי",
+      description: "המערכת משתמשת במפתח API מרכזי בשרת. אין צורך בהגדרות נוספות.",
     });
     
-    // Call success callback to close dialog
     onSuccess();
     onOpenChange(false);
   };
@@ -34,23 +27,14 @@ export function ApiKeyDialog({ open, onOpenChange, onSuccess }: ApiKeyDialogProp
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]" dir="rtl">
         <DialogHeader>
-          <DialogTitle>ניהול מפתחות API</DialogTitle>
+          <DialogTitle>ניהול API מרכזי</DialogTitle>
           <DialogDescription>
-            המערכת עברה לשימוש במפתח API מרכזי בשרת.
-            אין צורך להזין מפתח API אישי.
+            המערכת משתמשת במפתח API מרכזי שמוגדר בשרת.
+            כל המשתמשים נהנים מסיווג AI אוטומטי ללא צורך בהגדרות נוספות.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="openai-key">עדכון מערכת</Label>
-            <p className="text-sm text-gray-500">
-              המערכת כעת משתמשת במפתח API מרכזי שמוגדר בשרת.
-              כל המשתמשים נהנים מסיווג AI אוטומטי ללא צורך בהגדרות.
-            </p>
-          </div>
-        </div>
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} variant="outline">סגור</Button>
+          <Button onClick={handleClose} variant="primary">הבנתי</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

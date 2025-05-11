@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { Alert, RSSItem } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -150,7 +149,7 @@ async function classifySingleAlertWithAI(item: RSSItem, userLocation: string): P
   }
 }
 
-// סיווג התראה באמצעות מילות מפתח
+// פונקציה לחילוץ מיקום (פשוט - יחזיר מקום ראשון שמופיע בטקסט)
 function createAlertFromKeywords(item: RSSItem, userLocation: string): Alert {
   const fullText = `${item.title} ${item.description}`.toLowerCase();
   const securityKeywords = [
@@ -193,7 +192,7 @@ function createAlertFromKeywords(item: RSSItem, userLocation: string): Alert {
   };
 }
 
-// בדיקה אם AI סיווג פעיל עבור משתמש - הפונקציה מוחזרת לצורכי תאימות עם קוד קיים
+// AI classification access functions - simplified for server-side implementation
 export function hasLocalApiKey(): boolean {
   // All users now have access to AI classification through the Edge Function
   return true;
@@ -204,7 +203,7 @@ export function hasOpenAIApiKey(): Promise<boolean> {
   return Promise.resolve(true);
 }
 
-// סיווג התראות באמצעות AI
+// סיווג התראות באמצעת AI
 export async function classifyAlertsWithAI(items: RSSItem[], userLocation: string): Promise<Alert[]> {
   try {
     // סיווג כל התראה במקביל באמצעות AI
