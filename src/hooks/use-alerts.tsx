@@ -9,6 +9,8 @@ import {
 } from "@/services/alertService";
 import { saveAlertsToHistory } from "@/services/history";
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from "@/integrations/supabase/client";
+import { isPlatformNative } from "@/services/pushNotificationService";
 
 export function useAlerts(location: string, snoozeActive: boolean) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -59,6 +61,29 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         } catch (saveError) {
           console.error("שגיאה בשמירת התראה להיסטוריה:", saveError);
           // Continue even if history save fails
+        }
+        
+        // Send push notifications for relevant alerts
+        if (isPlatformNative()) {
+          const user = await supabase.auth.getUser();
+          const userId = user.data.user?.id;
+          
+          if (userId) {
+            relevantAlerts.forEach(async (alert) => {
+              try {
+                await supabase.functions.invoke('send-notification', {
+                  body: {
+                    user_id: userId,
+                    title: `התראה ב${alert.location}`,
+                    body: alert.title,
+                    data: { alert_id: alert.id }
+                  }
+                });
+              } catch (pushError) {
+                console.error('שגיאה בשליחת התראת Push:', pushError);
+              }
+            });
+          }
         }
         
         setAlerts(alertsWithIds);
