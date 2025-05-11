@@ -2,7 +2,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.geoalert.safespot',
+  appId: 'app.geoalert',
   appName: 'SafeSpot',
   webDir: 'dist',
   server: {
