@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { ensureUserProfile } from "@/services/supabaseClient";
 
 export const AuthRoute = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -11,13 +12,25 @@ export const AuthRoute = () => {
     // בדיקת סשן נוכחי
     const checkAuth = async () => {
       const { data } = await supabase.auth.getSession();
-      setIsAuthenticated(!!data.session);
+      const isAuth = !!data.session;
+      setIsAuthenticated(isAuth);
+      
+      // If user is authenticated, ensure they have a profile
+      if (isAuth) {
+        await ensureUserProfile();
+      }
     };
     
     checkAuth();
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsAuthenticated(!!session);
+      const isAuth = !!session;
+      setIsAuthenticated(isAuth);
+      
+      // If user logged in or token refreshed, ensure profile
+      if (isAuth && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        ensureUserProfile();
+      }
     });
     
     return () => {

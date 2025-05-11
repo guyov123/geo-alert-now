@@ -141,3 +141,49 @@ export async function hasOpenAIApiKeyInSupabase(): Promise<boolean> {
     return false;
   }
 }
+
+// Ensure user profile exists
+export async function ensureUserProfile(): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.log("No authenticated user found when ensuring profile");
+      return;
+    }
+    
+    console.log("Checking if profile exists for user:", user.id);
+    
+    // Check if profile exists
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle();
+    
+    if (error) {
+      console.error("Error checking profile:", error);
+      throw error;
+    }
+    
+    // If profile doesn't exist, create it
+    if (!data) {
+      console.log("Profile not found, creating new profile for user:", user.id);
+      
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({ id: user.id });
+        
+      if (insertError) {
+        console.error("Error creating profile:", insertError);
+        throw insertError;
+      }
+      
+      console.log("Profile created successfully for user:", user.id);
+    } else {
+      console.log("Profile already exists for user:", user.id);
+    }
+  } catch (error) {
+    console.error("Error ensuring user profile:", error);
+  }
+}
