@@ -11,3 +11,11 @@ declare module '@capacitor/push-notifications' {
   
   export const PushNotifications: PushNotifications;
 }
+
+declare module '@capacitor/core' {
+  export interface CapacitorInstance {
+    isNativePlatform(): boolean;
+  }
+  
+  export const Capacitor: CapacitorInstance;
+}

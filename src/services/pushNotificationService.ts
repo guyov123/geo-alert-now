@@ -1,49 +1,79 @@
 
-import { Capacitor } from '@capacitor/core';
 import { supabase } from "@/integrations/supabase/client";
 
-// Interface for PushNotifications to use in browser environments
+// Define interfaces for mocking Capacitor functionality
+interface CapacitorInterface {
+  isNativePlatform: () => boolean;
+}
+
 interface PushNotificationsInterface {
   requestPermissions: () => Promise<{ receive: string }>;
   register: () => Promise<void>;
   addListener: (eventName: string, callback: any) => { remove: () => void };
 }
 
-// Mock implementation for browser environments
+// Mock implementations for browser environments
+const mockCapacitor: CapacitorInterface = {
+  isNativePlatform: () => false
+};
+
 const mockPushNotifications: PushNotificationsInterface = {
   requestPermissions: async () => ({ receive: 'denied' }),
   register: async () => {},
   addListener: () => ({ remove: () => {} }),
 };
 
-// Check if the app is running on a native platform
-export function isPlatformNative(): boolean {
-  return Capacitor.isNativePlatform();
+// Safely determine if running on native platform
+async function getCapacitorModule(): Promise<CapacitorInterface> {
+  try {
+    // Only attempt import in a try/catch to avoid browser errors
+    if (typeof window !== 'undefined' && 'Capacitor' in window) {
+      const { Capacitor } = await import('@capacitor/core');
+      return Capacitor;
+    }
+  } catch (error) {
+    console.log('Running in browser environment without Capacitor');
+  }
+  return mockCapacitor;
+}
+
+// Safe check if the app is running on a native platform
+export async function isPlatformNative(): Promise<boolean> {
+  const capacitor = await getCapacitorModule();
+  return capacitor.isNativePlatform();
 }
 
 // Safely get the PushNotifications module
 async function getPushNotificationsModule(): Promise<PushNotificationsInterface> {
-  if (isPlatformNative()) {
-    try {
-      // Dynamically import the module only in native environments
-      const { PushNotifications } = await import('@capacitor/push-notifications');
-      return PushNotifications;
-    } catch (error) {
-      console.error('Error importing PushNotifications module:', error);
-      return mockPushNotifications;
+  try {
+    // First check if we're on native platform
+    const isNative = await isPlatformNative();
+    
+    if (isNative) {
+      try {
+        // Dynamically import the module only in native environments
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        return PushNotifications;
+      } catch (error) {
+        console.error('Error importing PushNotifications module:', error);
+      }
     }
+  } catch (error) {
+    console.log('Using mock push notifications');
   }
   return mockPushNotifications;
 }
 
 export async function initPushNotifications(): Promise<void> {
-  // Only run on native platforms
-  if (!isPlatformNative()) {
-    console.log("Not a native platform, skipping push notification setup");
-    return;
-  }
-
   try {
+    // Check if running on native platform
+    const isNative = await isPlatformNative();
+    
+    if (!isNative) {
+      console.log("Not a native platform, skipping push notification setup");
+      return;
+    }
+
     // Get PushNotifications module
     const PushNotifications = await getPushNotificationsModule();
     
