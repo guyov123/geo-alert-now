@@ -1,7 +1,40 @@
 
-import { PushNotifications } from "@capacitor/push-notifications";
-import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from '@capacitor/core';
+import { supabase } from "@/integrations/supabase/client";
+
+// Interface for PushNotifications to use in browser environments
+interface PushNotificationsInterface {
+  requestPermissions: () => Promise<{ receive: string }>;
+  register: () => Promise<void>;
+  addListener: (eventName: string, callback: any) => { remove: () => void };
+}
+
+// Mock implementation for browser environments
+const mockPushNotifications: PushNotificationsInterface = {
+  requestPermissions: async () => ({ receive: 'denied' }),
+  register: async () => {},
+  addListener: () => ({ remove: () => {} }),
+};
+
+// Check if the app is running on a native platform
+export function isPlatformNative(): boolean {
+  return Capacitor.isNativePlatform();
+}
+
+// Safely get the PushNotifications module
+async function getPushNotificationsModule(): Promise<PushNotificationsInterface> {
+  if (isPlatformNative()) {
+    try {
+      // Dynamically import the module only in native environments
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+      return PushNotifications;
+    } catch (error) {
+      console.error('Error importing PushNotifications module:', error);
+      return mockPushNotifications;
+    }
+  }
+  return mockPushNotifications;
+}
 
 export async function initPushNotifications(): Promise<void> {
   // Only run on native platforms
@@ -11,6 +44,9 @@ export async function initPushNotifications(): Promise<void> {
   }
 
   try {
+    // Get PushNotifications module
+    const PushNotifications = await getPushNotificationsModule();
+    
     // Request permission to use push notifications
     const permissionStatus = await PushNotifications.requestPermissions();
     
@@ -21,18 +57,18 @@ export async function initPushNotifications(): Promise<void> {
       await PushNotifications.register();
       
       // Listen for FCM token
-      PushNotifications.addListener('registration', async (token) => {
+      PushNotifications.addListener('registration', async (token: { value: string }) => {
         console.log('FCM Token:', token.value);
         await saveFCMToken(token.value);
       });
       
       // Listen for push notifications
-      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
         console.log('Notification received:', notification);
       });
       
       // Listen for click on notification
-      PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      PushNotifications.addListener('pushNotificationActionPerformed', (action: any) => {
         console.log('Notification action performed:', action);
         // Navigation could be added here
       });
@@ -63,9 +99,4 @@ async function saveFCMToken(token: string): Promise<void> {
   } catch (error) {
     console.error('Error saving FCM token:', error);
   }
-}
-
-// Check if the app is running on a native platform
-export function isPlatformNative(): boolean {
-  return Capacitor.isNativePlatform();
 }
