@@ -4,8 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, MapPin, Share2, MessageSquare } from "lucide-react";
 import { Alert } from "@/types";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
-import { he } from "date-fns/locale";
 import { Button } from "./ui/button";
 import { getRelativeTimeString } from "@/utils/alertTimeUtils";
 
@@ -14,28 +12,8 @@ interface AlertCardProps {
 }
 
 export function AlertCard({ alert }: AlertCardProps) {
-  // Use our custom time formatting with fallback to date-fns
-  let formattedTime: string;
-  try {
-    const alertDate = new Date(alert.timestamp);
-    if (isNaN(alertDate.getTime())) {
-      formattedTime = "זמן לא תקין";
-    } else {
-      // Check if the alert is very old (more than 7 days)
-      const diffInDays = (Date.now() - alertDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (diffInDays > 7) {
-        formattedTime = alertDate.toLocaleDateString('he-IL');
-      } else {
-        formattedTime = formatDistanceToNow(alertDate, { 
-          addSuffix: true,
-          locale: he 
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Error formatting time for alert:", error);
-    formattedTime = getRelativeTimeString(alert.timestamp);
-  }
+  // Use our custom time formatting exclusively
+  const formattedTime = getRelativeTimeString(alert.timestamp);
 
   return (
     <Card className={cn(

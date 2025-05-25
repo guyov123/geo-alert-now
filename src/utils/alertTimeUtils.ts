@@ -55,7 +55,8 @@ export function getRelativeTimeString(timestamp: string): string {
     }
     
     if (diffInMinutes < 60) {
-      return `לפני ${Math.floor(diffInMinutes)} דקות`;
+      const minutes = Math.floor(diffInMinutes);
+      return minutes === 0 ? "כעת" : `לפני ${minutes} דקות`;
     }
     
     const diffInHours = diffInMinutes / 60;
