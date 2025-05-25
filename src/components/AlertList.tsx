@@ -2,12 +2,10 @@
 import { Alert } from "@/types";
 import { AlertCard } from "./AlertCard";
 import { useState, useEffect } from "react";
-import { Bell, MapPin, List, Trash2 } from "lucide-react";
+import { Bell, MapPin, List } from "lucide-react";
 import { hasLocalApiKey } from "@/services/alertService";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
-import { clearAlertHistory } from "@/services/history";
-import { useToast } from "@/hooks/use-toast";
 
 interface AlertListProps {
   alerts: Alert[];
@@ -19,7 +17,6 @@ export function AlertList({ alerts, onRefresh }: AlertListProps) {
   const [relevantCount, setRelevantCount] = useState(0);
   const [nearbyAlerts, setNearbyAlerts] = useState<Alert[]>([]);
   const [usingAI, setUsingAI] = useState(false);
-  const { toast } = useToast();
   
   useEffect(() => {
     // Count relevant alerts
@@ -54,28 +51,6 @@ export function AlertList({ alerts, onRefresh }: AlertListProps) {
     checkAI();
   }, [alerts]);
 
-  const handleClearHistory = async () => {
-    try {
-      await clearAlertHistory();
-      toast({
-        title: "היסטוריה נוקתה",
-        description: "כל ההתראות הישנות נמחקו בהצלחה",
-      });
-      
-      // Call refresh to update the current view
-      if (onRefresh) {
-        onRefresh();
-      }
-    } catch (error) {
-      console.error("Error clearing history:", error);
-      toast({
-        title: "שגיאה",
-        description: "לא ניתן למחוק את ההיסטוריה",
-        variant: "destructive"
-      });
-    }
-  };
-
   // Filter alerts based on active view
   const getFilteredAlerts = () => {
     switch (activeView) {
@@ -104,19 +79,6 @@ export function AlertList({ alerts, onRefresh }: AlertListProps) {
   
   return (
     <div className="w-full relative">
-      {/* Clear History Button */}
-      <div className="flex justify-end mb-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleClearHistory}
-          className="text-xs text-red-600 hover:text-red-700"
-        >
-          <Trash2 className="h-3 w-3 mr-1" />
-          נקה היסטוריה
-        </Button>
-      </div>
-
       {/* Floating Action Buttons */}
       <div className="fixed right-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-3 z-50">
         <Button
