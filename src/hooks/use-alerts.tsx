@@ -46,9 +46,9 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         const classifiedAlerts = await classifyAlertsWithAI(rssItems, userLocation);
         console.log(`AI classified ${classifiedAlerts.length} security events`);
         
-        // CRITICAL: Filter to only recent alerts (24 hours) before any processing
+        // Filter to only recent alerts (24 hours) to avoid showing old alerts
         const recentAlerts = filterRecentAlerts(classifiedAlerts, 24);
-        console.log(`Filtered to ${recentAlerts.length} recent alerts (last 24 hours) from ${classifiedAlerts.length} total`);
+        console.log(`Filtered to ${recentAlerts.length} recent alerts (last 24 hours)`);
         
         // Debug logging for relevant alerts
         const relevantAlerts = recentAlerts.filter(alert => alert.isRelevant);
@@ -66,7 +66,7 @@ export function useAlerts(location: string, snoozeActive: boolean) {
           return alert;
         });
         
-        // Save ONLY recent alerts to history
+        // Save alerts to history (this will save all alerts, but display will be filtered)
         try {
           await saveAlertsToHistory(alertsWithIds);
         } catch (saveError) {
@@ -98,7 +98,6 @@ export function useAlerts(location: string, snoozeActive: boolean) {
           }
         }
         
-        // Set ONLY recent alerts for display
         setAlerts(alertsWithIds);
       } catch (error: any) {
         console.error("AI classification failed:", error);

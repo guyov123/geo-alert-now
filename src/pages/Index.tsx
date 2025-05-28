@@ -99,7 +99,7 @@ const Index = () => {
           onSnoozeCancel={handleSnoozeCancel}
         />
         
-        <AlertList alerts={alerts} onRefresh={handleRefresh} />
+        <AlertList alerts={alerts} />
 
         <CalmChat />
       </main>
