@@ -9,7 +9,7 @@ import { AlertList } from "@/components/AlertList";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { SnoozeAlert } from "@/components/SnoozeAlert";
 import { BottomNav } from "@/components/BottomNav";
-import { useAlerts } from "@/hooks/use-alerts";
+import { useCentralAlerts } from "@/hooks/use-central-alerts";
 import { useLocation } from "@/hooks/use-location";
 import { useSnooze } from "@/hooks/use-snooze";
 import { CalmChat } from "@/components/CalmChat";
@@ -24,7 +24,7 @@ const Index = () => {
     loading, 
     error,
     refreshAlerts
-  } = useAlerts(location, false);
+  } = useCentralAlerts(location, false);
 
   const {
     snoozeActive,
