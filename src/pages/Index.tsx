@@ -18,7 +18,6 @@ import { ControlsSection } from "@/components/ControlsSection";
 const Index = () => {
   const { toast } = useToast();
   const { location, handleLocationChange } = useLocation();
-  const [lastRefreshTime, setLastRefreshTime] = useState<Date>(new Date());
   
   const { 
     alerts, 
@@ -33,21 +32,13 @@ const Index = () => {
     handleSnoozeChange
   } = useSnooze((loc) => refreshAlerts(loc));
 
-  const handleRefresh = async () => {
-    await refreshAlerts(location);
-    setLastRefreshTime(new Date());
+  const handleRefresh = () => {
+    refreshAlerts(location);
   };
 
   const handleSnoozeCancel = () => {
     handleSnoozeChange(0, location);
   };
-
-  // Update last refresh time when alerts change
-  useEffect(() => {
-    if (alerts.length > 0) {
-      setLastRefreshTime(new Date());
-    }
-  }, [alerts]);
 
   if (loading) {
     return <LoadingSpinner message="טוען התראות..." />;
@@ -86,12 +77,6 @@ const Index = () => {
       
       <main className="flex-1 container mx-auto px-4 py-6">
         <ControlsSection onRefresh={handleRefresh} />
-
-        {/* Last Refresh Time Indicator */}
-        <div className="flex items-center justify-center mb-4 text-xs text-gray-500">
-          <Clock className="h-3 w-3 mr-1" />
-          <span>עודכן לאחרונה: {lastRefreshTime.toLocaleTimeString('he-IL')}</span>
-        </div>
 
         <SnoozeAlert 
           snoozeActive={snoozeActive} 

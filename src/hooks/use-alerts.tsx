@@ -10,19 +10,7 @@ import {
 import { saveAlertsToHistory } from "@/services/history";
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
-import { filterRecentAlerts } from "@/utils/alertTimeUtils";
-
-// Update the function to be async
-async function checkIfPlatformNative(): Promise<boolean> {
-  try {
-    // Try to import the function
-    const { isPlatformNative } = await import("@/services/pushNotificationService");
-    return await isPlatformNative();
-  } catch (error) {
-    console.log("Could not check platform, assuming web");
-    return false;
-  }
-}
+import { isPlatformNative } from "@/services/pushNotificationService";
 
 export function useAlerts(location: string, snoozeActive: boolean) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -46,27 +34,28 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         const classifiedAlerts = await classifyAlertsWithAI(rssItems, userLocation);
         console.log(`AI classified ${classifiedAlerts.length} security events`);
         
-        // Filter to only recent alerts (24 hours) to avoid showing old alerts
-        const recentAlerts = filterRecentAlerts(classifiedAlerts, 24);
-        console.log(`Filtered to ${recentAlerts.length} recent alerts (last 24 hours)`);
-        
-        // Debug logging for relevant alerts
-        const relevantAlerts = recentAlerts.filter(alert => alert.isRelevant);
+        // הדפסה לדיבאג של התראות רלוונטיות
+        const relevantAlerts = classifiedAlerts.filter(alert => alert.isRelevant);
         console.log(`Found ${relevantAlerts.length} relevant alerts for location: ${userLocation}`);
         console.log("DEBUG: User location after normalization for comparison:", userLocation);
         relevantAlerts.forEach(alert => {
-          console.log(`DEBUG: Relevant alert: "${alert.title}" | Location: ${alert.location} | Time: ${alert.timestamp}`);
+          console.log(`DEBUG: Relevant alert: "${alert.title}" | Location: ${alert.location}`);
+        });
+        
+        // פירוט מלא של ההתראות לדיבאג
+        classifiedAlerts.forEach(alert => {
+          console.log(`DEBUG: Alert "${alert.title}" | Location: ${alert.location} | Relevant: ${alert.isRelevant}`);
         });
         
         // Add unique IDs to all alerts if missing
-        const alertsWithIds = recentAlerts.map(alert => {
+        const alertsWithIds = classifiedAlerts.map(alert => {
           if (!alert.id) {
             return { ...alert, id: uuidv4() };
           }
           return alert;
         });
         
-        // Save alerts to history (this will save all alerts, but display will be filtered)
+        // שמירת ההתראות להיסטוריה
         try {
           await saveAlertsToHistory(alertsWithIds);
         } catch (saveError) {
@@ -75,8 +64,7 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         }
         
         // Send push notifications for relevant alerts
-        const isNative = await checkIfPlatformNative();
-        if (isNative) {
+        if (isPlatformNative()) {
           const user = await supabase.auth.getUser();
           const userId = user.data.user?.id;
           
@@ -123,19 +111,15 @@ export function useAlerts(location: string, snoozeActive: boolean) {
         const classifiedAlerts = classifyAlerts(rssItems, userLocation);
         console.log(`Fallback: Keyword classified ${classifiedAlerts.length} security events`);
         
-        // Filter to recent alerts for fallback as well
-        const recentAlerts = filterRecentAlerts(classifiedAlerts, 24);
-        console.log(`Filtered fallback to ${recentAlerts.length} recent alerts`);
-        
         // Add unique IDs to all alerts if missing
-        const alertsWithIds = recentAlerts.map(alert => {
+        const alertsWithIds = classifiedAlerts.map(alert => {
           if (!alert.id) {
             return { ...alert, id: uuidv4() };
           }
           return alert;
         });
         
-        // Save alerts to history
+        // שמירת ההתראות להיסטוריה
         try {
           await saveAlertsToHistory(alertsWithIds);
         } catch (saveError) {
@@ -155,7 +139,7 @@ export function useAlerts(location: string, snoozeActive: boolean) {
     }
   };
 
-  // Load alerts on page load
+  // טעינת התראות בטעינת הדף
   useEffect(() => {
     console.log(`Location changed: ${location}, refreshing alerts...`);
     refreshAlerts(location).catch(err => {
@@ -163,7 +147,7 @@ export function useAlerts(location: string, snoozeActive: boolean) {
     });
   }, [location]);
 
-  // Periodic refresh of alerts
+  // רענון תקופתי של התראות
   useEffect(() => {
     const interval = setInterval(() => {
       if (!snoozeActive) {
@@ -171,7 +155,7 @@ export function useAlerts(location: string, snoozeActive: boolean) {
           console.error("Error in periodic alerts refresh:", err);
         });
       }
-    }, 60000); // Refresh every minute
+    }, 60000); // רענון כל דקה
 
     return () => clearInterval(interval);
   }, [location, snoozeActive]);
