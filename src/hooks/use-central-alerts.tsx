@@ -20,46 +20,56 @@ function normalizeLocation(location: string): string {
   return normalized;
 }
 
-// פונקציה לבדיקה אם המיקום רלוונטי למשתמש
+// פונקציה משופרת לבדיקה אם המיקום רלוונטי למשתמש
 function isLocationRelevant(location: string, userLocation: string): boolean {
-  if (!location || !userLocation) return false;
+  if (!location || !userLocation || location === "לא ידוע") {
+    return false;
+  }
   
   const normalizedLocation = normalizeLocation(location);
   const normalizedUserLocation = normalizeLocation(userLocation);
   
+  console.log(`DEBUG: Checking relevance - Alert: "${normalizedLocation}" vs User: "${normalizedUserLocation}"`);
+  
   // בדיקה ישירה לאחר נרמול
   if (normalizedLocation === normalizedUserLocation) {
+    console.log("DEBUG: Direct match found after normalization");
     return true;
   }
   
   // רשימת מיקומים שייחשבו כרלוונטיים לכל המשתמשים
   const nationalLocations = ["ישראל", "כל הארץ", "המרכז", "הדרום", "הצפון", "גוש דן"];
   if (nationalLocations.some(loc => normalizedLocation.includes(normalizeLocation(loc)))) {
+    console.log("DEBUG: National location match found");
     return true;
   }
   
-  // רשימת מיקומים קרובים
-  const locationMap = {
-    'תל אביב-יפו': ['רמת גן', 'גבעתיים', 'בני ברק', 'חולון', 'בת ים', 'רמת השרון', 'הרצליה'],
-    'ירושלים': ['מעלה אדומים', 'גבעת זאב', 'בית שמש'],
-    'חיפה': ['קריות', 'טירת הכרמל', 'נשר'],
-    'באר שבע': ['אופקים', 'נתיבות', 'רהט', 'דימונה']
+  // רשימת מיקומים קרובים - יותר מגבילה ומדויקת
+  const locationMap: Record<string, string[]> = {
+    'תל אביב-יפו': ['רמת גן', 'גבעתיים', 'בני ברק', 'חולון', 'בת ים'],
+    'ירושלים': ['מעלה אדומים', 'גבעת זאב'],
+    'חיפה': ['קריות', 'טירת הכרמל'],
+    'באר שבע': ['אופקים', 'נתיבות']
   };
   
+  // בדיקה אם המיקום הוא חלק מאזור קרוב למיקום המשתמש
   for (const [area, nearby] of Object.entries(locationMap)) {
     const normalizedArea = normalizeLocation(area);
     if (normalizedUserLocation === normalizedArea) {
       if (nearby.some(place => normalizedLocation.includes(normalizeLocation(place)))) {
+        console.log(`DEBUG: Nearby location match found: ${area} includes ${normalizedLocation}`);
         return true;
       }
     }
   }
   
-  // בדיקת הכלה
-  if (normalizedLocation.includes(normalizedUserLocation) || normalizedUserLocation.includes(normalizedLocation)) {
+  // בדיקת הכלה מגבילה יותר - רק אם מיקום ההתראה מכיל את מיקום המשתמש ויש אורך מינימלי
+  if (normalizedLocation.includes(normalizedUserLocation) && normalizedUserLocation.length > 3) {
+    console.log("DEBUG: Substring match found");
     return true;
   }
   
+  console.log("DEBUG: No location match found");
   return false;
 }
 
@@ -110,6 +120,11 @@ export function useCentralAlerts(location: string, snoozeActive: boolean) {
       
       const relevantAlerts = convertedAlerts.filter(alert => alert.isRelevant);
       console.log(`Found ${relevantAlerts.length} relevant alerts for location: ${userLocation}`);
+      
+      // Log detailed location matching for debugging
+      convertedAlerts.forEach(alert => {
+        console.log(`Alert: "${alert.title}" in "${alert.location}" - Relevant: ${alert.isRelevant}`);
+      });
       
       setAlerts(convertedAlerts);
     } catch (error) {

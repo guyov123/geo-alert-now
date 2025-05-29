@@ -74,17 +74,34 @@ serve(async (req) => {
     
     console.log(`Total RSS items fetched: ${allItems.length}`);
     
-    // Get existing alert IDs to avoid duplicates
+    // Get existing alert links and titles to avoid duplicates
     const { data: existingAlerts } = await supabase
       .from('alerts')
-      .select('link')
+      .select('link, title')
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
     
     const existingLinks = new Set(existingAlerts?.map(alert => alert.link) || []);
+    const existingTitles = new Set(existingAlerts?.map(alert => alert.title.toLowerCase()) || []);
     
-    // Filter out items that already exist
-    const newItems = allItems.filter(item => !existingLinks.has(item.link));
-    console.log(`Found ${newItems.length} new items to process`);
+    // Filter out items that already exist (by link or very similar title)
+    const newItems = allItems.filter(item => {
+      if (existingLinks.has(item.link)) {
+        return false;
+      }
+      
+      // Check for very similar titles (to avoid duplicates with slightly different links)
+      const titleLower = item.title.toLowerCase();
+      for (const existingTitle of existingTitles) {
+        if (calculateTitleSimilarity(titleLower, existingTitle) > 0.85) {
+          console.log(`Skipping similar title: "${item.title}" (similar to existing)`);
+          return false;
+        }
+      }
+      
+      return true;
+    });
+    
+    console.log(`Found ${newItems.length} new items to process after deduplication`);
     
     if (newItems.length === 0) {
       return new Response(JSON.stringify({ 
@@ -179,6 +196,18 @@ serve(async (req) => {
   }
 });
 
+// Calculate similarity between two titles to detect duplicates
+function calculateTitleSimilarity(title1: string, title2: string): number {
+  // Simple similarity check based on common words
+  const words1 = title1.split(' ').filter(w => w.length > 2);
+  const words2 = title2.split(' ').filter(w => w.length > 2);
+  
+  if (words1.length === 0 || words2.length === 0) return 0;
+  
+  const commonWords = words1.filter(word => words2.includes(word));
+  return commonWords.length / Math.max(words1.length, words2.length);
+}
+
 async function fetchRssFeed(feedUrl: string): Promise<RSSItem[]> {
   const RSS_PROXY_API = "https://api.allorigins.win/raw?url=";
   
@@ -270,14 +299,21 @@ async function classifyAlertWithAI(item: RSSItem): Promise<Alert> {
   const prompt = `
 טקסט: "${fullText}"
 
-1. האם מדובר באירוע ביטחוני? ענה true או false בלבד.
-2. אם מוזכר מיקום (עיר, יישוב, אזור גאוגרפי), כתוב את שם המקום בלבד.
-3. אם לא ניתן להבין מה המיקום – כתוב null.
+אנא בחן את הטקסט הזה ובצע סיווג מדויק:
+
+1. האם מדובר באירוע ביטחוני? (פיגוע, טרור, ירי, טילים, רקטות, צבע אדום, פעילות צבאית)
+2. אם מוזכר מיקום ספציפי בישראל (עיר, יישוב, אזור), כתוב את שם המקום הספציפי בלבד
+3. אם המיקום לא ברור או לא קיים - כתוב null
+
+חשוב מאוד: 
+- רק אירועי ביטחון אמיתיים צריכים להיחשב כ-true
+- חדשות פוליטיות, כלכליות או ספורט אינן אירועי ביטחון
+- רק מיקומים ספציפיים בישראל צריכים להיזכר
 
 ענה בדיוק בפורמט JSON הבא:
 {
   "is_security_event": true/false,
-  "location": "שם המקום או null"
+  "location": "שם המקום הספציפי או null"
 }
 `;
 
@@ -301,6 +337,8 @@ async function classifyAlertWithAI(item: RSSItem): Promise<Alert> {
     
     const data = await response.json();
     const aiResponse = data.choices[0].message.content;
+    console.log(`AI Response for "${item.title}": ${aiResponse}`);
+    
     const result = JSON.parse(aiResponse);
     
     return {
@@ -394,7 +432,7 @@ async function sendPushNotifications(alerts: Alert[]): Promise<void> {
         isLocationRelevant(alert.location, user.location || "")
       );
       
-      console.log(`Alert "${alert.title}" relevant for ${relevantUsers.length} users`);
+      console.log(`Alert "${alert.title}" in "${alert.location}" relevant for ${relevantUsers.length} users`);
       
       // Send notification to each relevant user
       for (const user of relevantUsers) {
@@ -418,38 +456,54 @@ async function sendPushNotifications(alerts: Alert[]): Promise<void> {
 }
 
 function isLocationRelevant(alertLocation: string, userLocation: string): boolean {
-  if (!alertLocation || !userLocation) return false;
+  if (!alertLocation || !userLocation || alertLocation === "לא ידוע") {
+    return false;
+  }
   
   const normalizedAlert = normalizeLocation(alertLocation);
   const normalizedUser = normalizeLocation(userLocation);
   
-  // Direct match
-  if (normalizedAlert === normalizedUser) return true;
+  console.log(`Checking relevance: Alert location "${normalizedAlert}" vs User location "${normalizedUser}"`);
   
-  // National locations
-  const nationalLocations = ["ישראל", "כל הארץ", "המרכז", "הדרום", "הצפון", "גוש דן"];
-  if (nationalLocations.some(loc => normalizedAlert.includes(normalizeLocation(loc)))) {
+  // Direct match
+  if (normalizedAlert === normalizedUser) {
+    console.log("Direct match found");
     return true;
   }
   
-  // Nearby locations
-  const locationMap = {
-    'תל אביב-יפו': ['רמת גן', 'גבעתיים', 'בני ברק', 'חולון', 'בת ים', 'רמת השרון', 'הרצליה'],
-    'ירושלים': ['מעלה אדומים', 'גבעת זאב', 'בית שמש'],
-    'חיפה': ['קריות', 'טירת הכרמל', 'נשר'],
-    'באר שבע': ['אופקים', 'נתיבות', 'רהט', 'דימונה']
+  // National/regional locations that are relevant to everyone
+  const nationalLocations = ["ישראל", "כל הארץ", "המרכז", "הדרום", "הצפון", "גוש דן"];
+  if (nationalLocations.some(loc => normalizedAlert.includes(normalizeLocation(loc)))) {
+    console.log("National location match");
+    return true;
+  }
+  
+  // Nearby locations map - more specific and restrictive
+  const locationMap: Record<string, string[]> = {
+    'תל אביב-יפו': ['רמת גן', 'גבעתיים', 'בני ברק', 'חולון', 'בת ים'],
+    'ירושלים': ['מעלה אדומים', 'גבעת זאב'],
+    'חיפה': ['קריות', 'טירת הכרמל'],
+    'באר שבע': ['אופקים', 'נתיבות']
   };
   
+  // Check if user's location has nearby relevant locations
   for (const [area, nearby] of Object.entries(locationMap)) {
     if (normalizedUser === normalizeLocation(area)) {
       if (nearby.some(place => normalizedAlert.includes(normalizeLocation(place)))) {
+        console.log(`Nearby location match: ${area} includes ${normalizedAlert}`);
         return true;
       }
     }
   }
   
-  // Substring match
-  return normalizedAlert.includes(normalizedUser) || normalizedUser.includes(normalizedAlert);
+  // More restrictive substring match - only if alert location contains user location
+  if (normalizedAlert.includes(normalizedUser) && normalizedUser.length > 3) {
+    console.log("Substring match found");
+    return true;
+  }
+  
+  console.log("No location match found");
+  return false;
 }
 
 function normalizeLocation(location: string): string {
