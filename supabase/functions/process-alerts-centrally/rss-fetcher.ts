@@ -1,87 +1,117 @@
 
 import { RSSItem } from './types.ts';
 
-const RSS_PROXY_API = "https://api.allorigins.win/raw?url=";
-
-export async function fetchRssFeed(feedUrl: string): Promise<RSSItem[]> {
+export async function fetchRssFeed(url: string): Promise<RSSItem[]> {
   try {
-    const proxyUrl = `${RSS_PROXY_API}${encodeURIComponent(feedUrl)}`;
-    const response = await fetch(proxyUrl, {
+    console.log(`Fetching RSS feed from: ${url}`);
+    
+    const response = await fetch(url, {
       headers: {
-        'Accept': 'application/xml, text/xml, */*',
-        'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7'
+        'User-Agent': 'Mozilla/5.0 (compatible; AlertBot/1.0)',
+        'Accept': 'application/rss+xml, application/xml, text/xml'
       }
     });
     
     if (!response.ok) {
-      throw new Error(`Failed to fetch feed: ${response.status}`);
+      throw new Error(`Failed to fetch feed: ${response.status} ${response.statusText}`);
     }
     
-    const xmlData = await response.text();
-    return parseRssFeedWithDOMParser(xmlData);
+    const xmlText = await response.text();
+    console.log(`Received XML response, length: ${xmlText.length}`);
+    
+    return parseRssFeedWithRegex(xmlText);
   } catch (error) {
-    console.error(`Error fetching RSS feed ${feedUrl}:`, error);
-    return [];
+    console.error(`Error fetching RSS feed ${url}:`, error);
+    throw error;
   }
 }
 
-function parseRssFeedWithDOMParser(xmlData: string): RSSItem[] {
+function parseRssFeedWithRegex(xmlText: string): RSSItem[] {
+  const items: RSSItem[] = [];
+  
   try {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlData, "text/xml");
+    // Extract items using regex patterns
+    const itemMatches = xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/gi);
     
-    const parserError = xmlDoc.querySelector("parsererror");
-    if (parserError) {
-      console.error("XML parsing error:", parserError.textContent);
-      return [];
+    if (!itemMatches) {
+      console.log('No items found in RSS feed');
+      return items;
     }
     
-    const itemElements = xmlDoc.querySelectorAll("item");
-    const items: RSSItem[] = [];
+    console.log(`Found ${itemMatches.length} items in RSS feed`);
     
-    itemElements.forEach((item) => {
-      const getElementText = (parent: Element, tagName: string): string => {
-        const element = parent.querySelector(tagName);
-        return element ? element.textContent?.trim() || "" : "";
-      };
-      
-      const title = getElementText(item, "title");
-      const description = getElementText(item, "description").replace(/<\/?[^>]+(>|$)/g, "");
-      const link = getElementText(item, "link");
-      const pubDate = getElementText(item, "pubDate");
-      const guid = getElementText(item, "guid") || Math.random().toString(36).substr(2, 9);
-      
-      if (title) {
-        items.push({
-          title,
-          description: description || "אין פרטים נוספים",
-          link: link,
-          pubDate: normalizeDate(pubDate),
-          guid
-        });
+    for (const itemXml of itemMatches) {
+      try {
+        const item = parseRSSItem(itemXml);
+        if (item) {
+          items.push(item);
+        }
+      } catch (error) {
+        console.error('Error parsing RSS item:', error);
+        continue;
       }
-    });
+    }
     
+    console.log(`Successfully parsed ${items.length} items`);
     return items;
   } catch (error) {
-    console.error("Error parsing RSS feed:", error);
-    return [];
+    console.error('Error parsing RSS feed:', error);
+    return items;
   }
 }
 
-function normalizeDate(dateStr: string): string {
-  if (!dateStr) {
-    return new Date().toISOString();
-  }
-  
+function parseRSSItem(itemXml: string): RSSItem | null {
   try {
-    const date = new Date(dateStr);
-    if (!isNaN(date.getTime())) {
-      return date.toISOString();
+    const title = extractXmlContent(itemXml, 'title');
+    const description = extractXmlContent(itemXml, 'description');
+    const link = extractXmlContent(itemXml, 'link');
+    const pubDate = extractXmlContent(itemXml, 'pubDate');
+    const guid = extractXmlContent(itemXml, 'guid') || link || crypto.randomUUID();
+    
+    if (!title || !link) {
+      console.log('Skipping item missing title or link');
+      return null;
     }
-  } catch (e) {
-    // Fall through to return current date
+    
+    // Clean up HTML entities and tags
+    const cleanTitle = cleanHtmlContent(title);
+    const cleanDescription = cleanHtmlContent(description);
+    
+    return {
+      title: cleanTitle,
+      description: cleanDescription,
+      link: link,
+      pubDate: pubDate || new Date().toISOString(),
+      guid: guid
+    };
+  } catch (error) {
+    console.error('Error parsing RSS item:', error);
+    return null;
   }
+}
+
+function extractXmlContent(xml: string, tag: string): string {
+  const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i');
+  const match = xml.match(regex);
+  return match ? match[1].trim() : '';
+}
+
+function cleanHtmlContent(content: string): string {
+  if (!content) return '';
   
-  return new Date().toISOString();
+  // Remove CDATA sections
+  content = content.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, '$1');
+  
+  // Remove HTML tags
+  content = content.replace(/<[^>]*>/g, '');
+  
+  // Decode HTML entities
+  content = content
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+  
+  return content.trim();
 }

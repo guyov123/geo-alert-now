@@ -1,9 +1,15 @@
 
 import { RSSItem, Alert } from './types.ts';
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY')!;
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
 export async function classifyAlertWithAI(item: RSSItem): Promise<Alert> {
+  // Check if OpenAI API key is available
+  if (!openAIApiKey) {
+    console.log("OpenAI API key not available, falling back to keyword classification");
+    return createAlertFromKeywords(item);
+  }
+
   const fullText = `${item.title} ${item.description}`;
   
   const prompt = `
@@ -28,6 +34,8 @@ export async function classifyAlertWithAI(item: RSSItem): Promise<Alert> {
 `;
 
   try {
+    console.log(`Sending classification request for: "${item.title.substring(0, 50)}..."`);
+    
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -42,6 +50,8 @@ export async function classifyAlertWithAI(item: RSSItem): Promise<Alert> {
     });
     
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`OpenAI API error (${response.status}): ${errorText}`);
       throw new Error(`OpenAI API error: ${response.status}`);
     }
     
@@ -51,28 +61,36 @@ export async function classifyAlertWithAI(item: RSSItem): Promise<Alert> {
     
     const result = JSON.parse(aiResponse);
     
-    return {
+    const alert: Alert = {
       id: crypto.randomUUID(),
       title: item.title,
       description: item.description,
-      location: result.location === "null" ? "לא ידוע" : result.location,
+      location: result.location === "null" || !result.location ? "לא ידוע" : result.location,
       timestamp: item.pubDate,
       source: extractSourceFromLink(item.link),
       link: item.link,
       is_security_event: result.is_security_event === true
     };
+    
+    console.log(`Classification complete: security=${alert.is_security_event}, location="${alert.location}"`);
+    return alert;
+    
   } catch (error) {
     console.error("Error classifying alert with AI:", error);
+    console.log("Falling back to keyword classification");
     // Fallback to keyword classification
     return createAlertFromKeywords(item);
   }
 }
 
 function createAlertFromKeywords(item: RSSItem): Alert {
+  console.log(`Using keyword classification for: "${item.title}"`);
+  
   const fullText = `${item.title} ${item.description}`.toLowerCase();
   const securityKeywords = [
     "אזעקה", "פיגוע", "ירי", "טיל", "רקטה", "פצועים", "הרוגים", "טרור",
-    "חמאס", "חיזבאללה", "ג'יהאד", "דאעש", "חדירה", "צבע אדום", "צה\"ל"
+    "חמאס", "חיזבאללה", "ג'יהאד", "דאעש", "חדירה", "צבע אדום", "צה\"ל",
+    "פיצוץ", "התקפה", "נפגעים", "מבצע", "כוחות", "צבא"
   ];
   
   const isSecurityEvent = securityKeywords.some(keyword => 
@@ -82,7 +100,8 @@ function createAlertFromKeywords(item: RSSItem): Alert {
   let location = "לא ידוע";
   const cityNames = [
     "תל אביב", "ירושלים", "חיפה", "באר שבע", "אשדוד", "אשקלון", 
-    "רמת גן", "חדרה", "נתניה", "אילת", "עזה", "לבנון", "הגליל", "הנגב"
+    "רמת גן", "חדרה", "נתניה", "אילת", "עזה", "לבנון", "הגליל", "הנגב",
+    "ראשון לציון", "פתח תקווה", "חולון", "בת ים", "בני ברק", "רמלה"
   ];
   
   for (const city of cityNames) {
@@ -91,6 +110,8 @@ function createAlertFromKeywords(item: RSSItem): Alert {
       break;
     }
   }
+  
+  console.log(`Keyword classification result: security=${isSecurityEvent}, location="${location}"`);
   
   return {
     id: crypto.randomUUID(),
@@ -114,6 +135,7 @@ function extractSourceFromLink(link: string): string {
     if (hostname.includes("maariv")) return "מעריב";
     if (hostname.includes("israelhayom")) return "ישראל היום";
     if (hostname.includes("haaretz")) return "הארץ";
+    if (hostname.includes("0404")) return "0404";
     
     return hostname.split('.')[1] || hostname;
   } catch (e) {
