@@ -73,6 +73,57 @@ function isLocationRelevant(location: string, userLocation: string): boolean {
   return false;
 }
 
+// פונקציית דה-דופליקציה צד קליינט משופרת
+function deduplicateAlerts(alerts: Alert[]): Alert[] {
+  const uniqueAlerts: Alert[] = [];
+  const seenTitles = new Set<string>();
+  const seenLinks = new Set<string>();
+  
+  for (const alert of alerts) {
+    // נרמול כותרת להשוואה
+    const normalizedTitle = alert.title.toLowerCase().trim().replace(/[^\w\s]/g, '');
+    
+    // דילוג על קישורים זהים
+    if (seenLinks.has(alert.link)) {
+      console.log(`Client dedup: Skipping duplicate link: ${alert.link}`);
+      continue;
+    }
+    
+    // דילוג על כותרות זהות לחלוטין
+    if (seenTitles.has(normalizedTitle)) {
+      console.log(`Client dedup: Skipping duplicate title: ${alert.title}`);
+      continue;
+    }
+    
+    // בדיקת דמיון גבוה בכותרת
+    let isDuplicate = false;
+    for (const seenTitle of seenTitles) {
+      const words1 = normalizedTitle.split(/\s+/).filter(w => w.length > 2);
+      const words2 = seenTitle.split(/\s+/).filter(w => w.length > 2);
+      
+      if (words1.length > 0 && words2.length > 0) {
+        const commonWords = words1.filter(word => words2.includes(word));
+        const similarity = commonWords.length / Math.max(words1.length, words2.length);
+        
+        if (similarity > 0.85) {
+          console.log(`Client dedup: Skipping similar title: ${alert.title} (similarity: ${similarity})`);
+          isDuplicate = true;
+          break;
+        }
+      }
+    }
+    
+    if (!isDuplicate) {
+      uniqueAlerts.push(alert);
+      seenTitles.add(normalizedTitle);
+      seenLinks.add(alert.link);
+    }
+  }
+  
+  console.log(`Client dedup: Reduced ${alerts.length} alerts to ${uniqueAlerts.length} unique alerts`);
+  return uniqueAlerts;
+}
+
 export function useCentralAlerts(location: string, snoozeActive: boolean) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -104,7 +155,7 @@ export function useCentralAlerts(location: string, snoozeActive: boolean) {
       
       console.log(`Fetched ${dbAlerts?.length || 0} alerts from database`);
       
-      // Convert database alerts to our Alert type and filter by relevance
+      // Convert database alerts to our Alert type
       const convertedAlerts: Alert[] = (dbAlerts || []).map(dbAlert => ({
         id: dbAlert.id,
         title: dbAlert.title,
@@ -118,15 +169,18 @@ export function useCentralAlerts(location: string, snoozeActive: boolean) {
         imageUrl: dbAlert.image_url
       }));
       
-      const relevantAlerts = convertedAlerts.filter(alert => alert.isRelevant);
-      console.log(`Found ${relevantAlerts.length} relevant alerts for location: ${userLocation}`);
+      // Apply client-side deduplication
+      const deduplicatedAlerts = deduplicateAlerts(convertedAlerts);
+      
+      const relevantAlerts = deduplicatedAlerts.filter(alert => alert.isRelevant);
+      console.log(`Found ${relevantAlerts.length} relevant alerts for location: ${userLocation} after deduplication`);
       
       // Log detailed location matching for debugging
-      convertedAlerts.forEach(alert => {
+      deduplicatedAlerts.forEach(alert => {
         console.log(`Alert: "${alert.title}" in "${alert.location}" - Relevant: ${alert.isRelevant}`);
       });
       
-      setAlerts(convertedAlerts);
+      setAlerts(deduplicatedAlerts);
     } catch (error) {
       console.error("Error refreshing alerts:", error);
       setError("אירעה שגיאה בטעינת ההתראות");
