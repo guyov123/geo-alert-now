@@ -9,7 +9,8 @@ export async function fetchRssFeed(url: string): Promise<RSSItem[]> {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; AlertBot/1.0)',
         'Accept': 'application/rss+xml, application/xml, text/xml'
-      }
+      },
+      signal: AbortSignal.timeout(25000) // 25 second timeout
     });
     
     if (!response.ok) {
@@ -18,6 +19,11 @@ export async function fetchRssFeed(url: string): Promise<RSSItem[]> {
     
     const xmlText = await response.text();
     console.log(`Received XML response, length: ${xmlText.length}`);
+    
+    if (xmlText.length === 0) {
+      console.warn(`Empty response from ${url}`);
+      return [];
+    }
     
     return parseRssFeedWithRegex(xmlText);
   } catch (error) {
@@ -73,15 +79,36 @@ function parseRSSItem(itemXml: string): RSSItem | null {
       return null;
     }
     
+    // Validate URL format
+    try {
+      new URL(link);
+    } catch {
+      console.log(`Skipping item with invalid URL: ${link}`);
+      return null;
+    }
+    
     // Clean up HTML entities and tags
     const cleanTitle = cleanHtmlContent(title);
     const cleanDescription = cleanHtmlContent(description);
+    
+    // Validate date format
+    let validatedDate = new Date().toISOString();
+    if (pubDate) {
+      try {
+        const parsedDate = new Date(pubDate);
+        if (!isNaN(parsedDate.getTime())) {
+          validatedDate = parsedDate.toISOString();
+        }
+      } catch {
+        console.log(`Invalid date format: ${pubDate}, using current time`);
+      }
+    }
     
     return {
       title: cleanTitle,
       description: cleanDescription,
       link: link,
-      pubDate: pubDate || new Date().toISOString(),
+      pubDate: validatedDate,
       guid: guid
     };
   } catch (error) {
@@ -111,7 +138,9 @@ function cleanHtmlContent(content: string): string {
     .replace(/&apos;/g, "'")
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&');
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
   
   return content.trim();
 }

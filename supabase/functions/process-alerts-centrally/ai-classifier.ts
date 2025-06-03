@@ -26,7 +26,7 @@ export async function classifyAlertWithAI(item: RSSItem): Promise<Alert> {
 - חדשות פוליטיות, כלכליות או ספורט אינן אירועי ביטחון
 - רק מיקומים ספציפיים בישראל צריכים להיזכר
 
-ענה בדיוק בפורמט JSON הבא:
+ענה רק בפורמט JSON הבא ללא כל תוכן נוסף:
 {
   "is_security_event": true/false,
   "location": "שם המקום הספציפי או null"
@@ -44,8 +44,12 @@ export async function classifyAlertWithAI(item: RSSItem): Promise<Alert> {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0
+        messages: [{ 
+          role: "user", 
+          content: prompt 
+        }],
+        temperature: 0,
+        max_tokens: 100
       })
     });
     
@@ -56,10 +60,39 @@ export async function classifyAlertWithAI(item: RSSItem): Promise<Alert> {
     }
     
     const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
-    console.log(`AI Response for "${item.title}": ${aiResponse}`);
+    const aiResponse = data.choices[0].message.content.trim();
+    console.log(`Raw AI Response for "${item.title}": ${aiResponse}`);
     
-    const result = JSON.parse(aiResponse);
+    // Clean the response - remove markdown code blocks and extra text
+    let cleanResponse = aiResponse;
+    if (cleanResponse.includes('```json')) {
+      cleanResponse = cleanResponse.split('```json')[1].split('```')[0].trim();
+    } else if (cleanResponse.includes('```')) {
+      cleanResponse = cleanResponse.split('```')[1].trim();
+    }
+    
+    // Extract JSON from response if it contains extra text
+    const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanResponse = jsonMatch[0];
+    }
+    
+    console.log(`Cleaned AI Response: ${cleanResponse}`);
+    
+    let result;
+    try {
+      result = JSON.parse(cleanResponse);
+    } catch (parseError) {
+      console.error(`JSON parse error for response: "${cleanResponse}". Error: ${parseError}`);
+      console.log("Falling back to keyword classification due to JSON parse error");
+      return createAlertFromKeywords(item);
+    }
+    
+    // Validate the result structure
+    if (typeof result.is_security_event !== 'boolean') {
+      console.error(`Invalid is_security_event value: ${result.is_security_event}`);
+      return createAlertFromKeywords(item);
+    }
     
     const alert: Alert = {
       id: crypto.randomUUID(),
@@ -78,7 +111,6 @@ export async function classifyAlertWithAI(item: RSSItem): Promise<Alert> {
   } catch (error) {
     console.error("Error classifying alert with AI:", error);
     console.log("Falling back to keyword classification");
-    // Fallback to keyword classification
     return createAlertFromKeywords(item);
   }
 }
@@ -90,7 +122,7 @@ function createAlertFromKeywords(item: RSSItem): Alert {
   const securityKeywords = [
     "אזעקה", "פיגוע", "ירי", "טיל", "רקטה", "פצועים", "הרוגים", "טרור",
     "חמאס", "חיזבאללה", "ג'יהאד", "דאעש", "חדירה", "צבע אדום", "צה\"ל",
-    "פיצוץ", "התקפה", "נפגעים", "מבצע", "כוחות", "צבא"
+    "פיצוץ", "התקפה", "נפגעים", "מבצע", "כוחות", "צבא", "שיגור", "יירוט"
   ];
   
   const isSecurityEvent = securityKeywords.some(keyword => 
@@ -101,7 +133,8 @@ function createAlertFromKeywords(item: RSSItem): Alert {
   const cityNames = [
     "תל אביב", "ירושלים", "חיפה", "באר שבע", "אשדוד", "אשקלון", 
     "רמת גן", "חדרה", "נתניה", "אילת", "עזה", "לבנון", "הגליל", "הנגב",
-    "ראשון לציון", "פתח תקווה", "חולון", "בת ים", "בני ברק", "רמלה"
+    "ראשון לציון", "פתח תקווה", "חולון", "בת ים", "בני ברק", "רמלה",
+    "כפר סבא", "הרצליה", "גבעתיים", "קריית אונו"
   ];
   
   for (const city of cityNames) {

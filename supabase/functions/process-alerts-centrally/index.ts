@@ -20,6 +20,65 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Health check function
+async function performHealthCheck(): Promise<{ status: string; details: any }> {
+  const health = {
+    database: false,
+    rss_sources: 0,
+    recent_alerts: 0,
+    openai_configured: false,
+    errors: [] as string[]
+  };
+
+  try {
+    // Test database connection
+    const { data: testData, error: testError } = await supabase.from('alerts').select('count').limit(1);
+    if (testError) {
+      health.errors.push(`Database error: ${testError.message}`);
+    } else {
+      health.database = true;
+    }
+
+    // Check RSS sources
+    const { data: sources, error: sourcesError } = await supabase
+      .from('rss_sources')
+      .select('count')
+      .eq('is_default', true);
+    
+    if (sourcesError) {
+      health.errors.push(`RSS sources error: ${sourcesError.message}`);
+    } else {
+      health.rss_sources = sources?.length || 0;
+    }
+
+    // Check recent alerts
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentAlerts, error: alertsError } = await supabase
+      .from('alerts')
+      .select('count')
+      .gte('created_at', yesterday);
+    
+    if (alertsError) {
+      health.errors.push(`Recent alerts error: ${alertsError.message}`);
+    } else {
+      health.recent_alerts = recentAlerts?.length || 0;
+    }
+
+    // Check OpenAI configuration
+    health.openai_configured = !!Deno.env.get('OPENAI_API_KEY');
+
+    return {
+      status: health.errors.length === 0 ? 'healthy' : 'unhealthy',
+      details: health
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      details: { error: error.message }
+    };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -28,6 +87,26 @@ serve(async (req) => {
   try {
     console.log("=== Starting central alert processing ===");
     console.log(`Timestamp: ${new Date().toISOString()}`);
+    
+    // Parse request body to check for health check request
+    let requestBody = {};
+    try {
+      const bodyText = await req.text();
+      if (bodyText) {
+        requestBody = JSON.parse(bodyText);
+      }
+    } catch (e) {
+      // Ignore JSON parse errors for empty or invalid bodies
+    }
+
+    // Handle health check requests
+    if ((requestBody as any)?.health_check) {
+      console.log("Performing health check...");
+      const healthResult = await performHealthCheck();
+      return new Response(JSON.stringify(healthResult), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
     
     // Check if required environment variables are set
     if (!supabaseUrl || !supabaseServiceKey) {
@@ -55,18 +134,25 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: true, 
         message: "No RSS sources configured",
-        processed: 0
+        processed: 0,
+        timestamp: new Date().toISOString()
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
     
-    // Fetch RSS feeds in parallel
+    // Fetch RSS feeds in parallel with timeout
     console.log("Starting RSS feed fetching...");
     const feedPromises = sources.map(async (source) => {
       try {
         console.log(`Fetching from: ${source.name} (${source.url})`);
-        const items = await fetchRssFeed(source.url);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 30000)
+        );
+        
+        const fetchPromise = fetchRssFeed(source.url);
+        const items = await Promise.race([fetchPromise, timeoutPromise]) as RSSItem[];
+        
         console.log(`Successfully fetched ${items.length} items from ${source.name}`);
         return { source: source.name, items, error: null };
       } catch (error) {
@@ -77,11 +163,20 @@ serve(async (req) => {
     
     const feedResults = await Promise.all(feedPromises);
     
-    // Collect all items
+    // Collect all items with detailed logging
     const allItems: RSSItem[] = [];
     let successfulFeeds = 0;
+    const feedSummary: any[] = [];
     
     feedResults.forEach((result) => {
+      const summary = {
+        source: result.source,
+        items_count: result.items.length,
+        success: !result.error,
+        error: result.error
+      };
+      feedSummary.push(summary);
+      
       if (result.error) {
         console.error(`Error from ${result.source}: ${result.error}`);
       } else {
@@ -92,6 +187,7 @@ serve(async (req) => {
     });
     
     console.log(`Total RSS items collected: ${allItems.length} from ${successfulFeeds}/${sources.length} successful feeds`);
+    console.log("Feed summary:", JSON.stringify(feedSummary, null, 2));
     
     if (allItems.length === 0) {
       console.log("No items fetched from any RSS feed");
@@ -99,7 +195,8 @@ serve(async (req) => {
         success: false, 
         message: "No items could be fetched from RSS feeds",
         processed: 0,
-        details: feedResults.map(r => ({ source: r.source, error: r.error }))
+        feed_summary: feedSummary,
+        timestamp: new Date().toISOString()
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -117,7 +214,7 @@ serve(async (req) => {
     
     console.log(`Found ${existingLinks.size} existing links and ${existingTitles.size} existing titles`);
     
-    // Filter out duplicates
+    // Filter out duplicates with enhanced algorithm
     console.log("Filtering duplicates...");
     const newItems = filterDuplicates(allItems, existingLinks, existingTitles);
     
@@ -127,16 +224,26 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: true, 
         message: "No new alerts to process",
-        processed: 0
+        processed: 0,
+        total_items_fetched: allItems.length,
+        feed_summary: feedSummary,
+        timestamp: new Date().toISOString()
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
     
-    // Classify items with AI in batches
+    // Classify items with AI in smaller batches for better reliability
     console.log("Starting AI classification...");
-    const batchSize = 3; // Reduced batch size
+    const batchSize = 2; // Smaller batches for reliability
     const classifiedAlerts: Alert[] = [];
+    const classificationStats = {
+      total: newItems.length,
+      security_events: 0,
+      ai_classifications: 0,
+      keyword_fallbacks: 0,
+      errors: 0
+    };
     
     for (let i = 0; i < newItems.length; i += batchSize) {
       const batch = newItems.slice(i, i + batchSize);
@@ -145,56 +252,57 @@ serve(async (req) => {
       
       console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} items)`);
       
-      const batchPromises = batch.map(async (item, idx) => {
+      for (const item of batch) {
         try {
-          console.log(`Classifying item ${i + idx + 1}: "${item.title.substring(0, 50)}..."`);
+          console.log(`Classifying item ${i + batch.indexOf(item) + 1}: "${item.title.substring(0, 50)}..."`);
           const result = await classifyAlertWithAI(item);
+          
+          // Track classification method
+          if (result.is_security_event) {
+            classificationStats.security_events++;
+          }
+          
+          classifiedAlerts.push(result);
           console.log(`Classification result: security=${result.is_security_event}, location="${result.location}"`);
-          return { status: 'fulfilled', value: result };
+          
         } catch (error) {
           console.error(`Failed to classify item "${item.title}":`, error);
-          return { status: 'rejected', reason: error };
+          classificationStats.errors++;
         }
-      });
+      }
       
-      const batchResults = await Promise.allSettled(batchPromises);
-      
-      batchResults.forEach((result, idx) => {
-        if (result.status === 'fulfilled' && result.value.is_security_event) {
-          classifiedAlerts.push(result.value);
-          console.log(`Added security alert: "${result.value.title}"`);
-        } else if (result.status === 'rejected') {
-          console.error(`Failed to classify item ${batch[idx].title}:`, result.reason);
-        } else {
-          console.log(`Item "${batch[idx].title}" classified as non-security event`);
-        }
-      });
-      
-      // Small delay between batches to avoid rate limiting
+      // Delay between batches to avoid rate limiting
       if (i + batchSize < newItems.length) {
-        console.log("Waiting 2 seconds before next batch...");
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log("Waiting 3 seconds before next batch...");
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
     }
     
-    console.log(`AI Classification complete: ${classifiedAlerts.length} security alerts identified`);
+    console.log(`AI Classification complete: ${classifiedAlerts.length} total alerts, ${classificationStats.security_events} security alerts identified`);
+    console.log("Classification stats:", JSON.stringify(classificationStats, null, 2));
     
-    if (classifiedAlerts.length === 0) {
+    // Filter for security events only
+    const securityAlerts = classifiedAlerts.filter(alert => alert.is_security_event);
+    
+    if (securityAlerts.length === 0) {
       return new Response(JSON.stringify({ 
         success: true, 
         message: "No security alerts found",
         processed: 0,
-        total_items: newItems.length
+        total_items: newItems.length,
+        classification_stats: classificationStats,
+        feed_summary: feedSummary,
+        timestamp: new Date().toISOString()
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
     
     // Insert new alerts into database
-    console.log(`Inserting ${classifiedAlerts.length} alerts into database...`);
+    console.log(`Inserting ${securityAlerts.length} security alerts into database...`);
     const { data: insertedAlerts, error: insertError } = await supabase
       .from('alerts')
-      .insert(classifiedAlerts.map(alert => ({
+      .insert(securityAlerts.map(alert => ({
         id: alert.id,
         title: alert.title,
         description: alert.description,
@@ -212,12 +320,12 @@ serve(async (req) => {
       throw insertError;
     }
     
-    console.log(`Successfully inserted ${insertedAlerts?.length} new alerts`);
+    console.log(`Successfully inserted ${insertedAlerts?.length} new security alerts`);
     
     // Send push notifications for relevant alerts
     console.log("Sending push notifications...");
     try {
-      await sendPushNotifications(classifiedAlerts);
+      await sendPushNotifications(securityAlerts);
       console.log("Push notifications sent successfully");
     } catch (notificationError) {
       console.error("Error sending push notifications:", notificationError);
@@ -228,11 +336,15 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({ 
       success: true, 
-      message: `Processed ${classifiedAlerts.length} new security alerts`,
-      processed: classifiedAlerts.length,
+      message: `Processed ${securityAlerts.length} new security alerts`,
+      processed: securityAlerts.length,
       total_items_processed: newItems.length,
+      total_items_fetched: allItems.length,
       successful_feeds: successfulFeeds,
-      total_feeds: sources.length
+      total_feeds: sources.length,
+      classification_stats: classificationStats,
+      feed_summary: feedSummary,
+      timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
