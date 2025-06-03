@@ -50,33 +50,41 @@ export function Header({ location, onLocationChange, onSnoozeChange, snoozeActiv
           <h1 className="text-xl font-semibold text-gray-900">SafeSpot</h1>
         </div>
         
-        <div className="flex items-center space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1"
-            onClick={() => setLocationDialogOpen(true)}
-          >
-            <MapPin className="h-4 w-4 text-geoalert-turquoise" />
-            <span className="text-sm">{location}</span>
-          </Button>
+        <div className="flex items-center space-x-4">
+          <img 
+            src="/lovable-uploads/99d17baf-8cdd-452b-8697-c684482c1e25.png" 
+            alt="SafeSpot Logo" 
+            className="h-10 w-auto object-contain"
+          />
           
-          <Button
-            variant="ghost" 
-            size="icon"
-            onClick={() => setSettingsDialogOpen(true)}
-          >
-            <Settings className="h-5 w-5 text-gray-600" />
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-1"
+              onClick={() => setLocationDialogOpen(true)}
+            >
+              <MapPin className="h-4 w-4 text-geoalert-turquoise" />
+              <span className="text-sm">{location}</span>
+            </Button>
+            
+            <Button
+              variant="ghost" 
+              size="icon"
+              onClick={() => setSettingsDialogOpen(true)}
+            >
+              <Settings className="h-5 w-5 text-gray-600" />
+            </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            title="התנתק"
-          >
-            <LogOut className="h-5 w-5 text-gray-600" />
-          </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              title="התנתק"
+            >
+              <LogOut className="h-5 w-5 text-gray-600" />
+            </Button>
+          </div>
         </div>
       </div>
 
