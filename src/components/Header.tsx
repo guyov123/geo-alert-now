@@ -1,3 +1,4 @@
+
 import { MapPin, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -43,12 +44,12 @@ export function Header({ location, onLocationChange, onSnoozeChange, snoozeActiv
 
   return (
     <header className="sticky top-0 z-10 w-full bg-geoalert-white border-b border-gray-200 shadow-sm">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="container mx-auto px-4 py-2 flex items-center justify-between">
         <div className="flex items-center">
           <img 
-            src="/lovable-uploads/99d17baf-8cdd-452b-8697-c684482c1e25.png" 
+            src="/lovable-uploads/ea6c5fe0-0f3a-4033-a4ac-39909cfe1d8d.png" 
             alt="SafeSpot" 
-            className="h-16 w-auto object-contain"
+            className="h-12 w-auto object-contain"
           />
         </div>
         
